@@ -1,0 +1,4 @@
+# annuler.z5 (tests/neo/sources/annuler.inf) : save_undo / restore_undo par la mémoire graphique ($90).
+STORY=tests/neo/histoires/annuler.z5
+KEYS='a\na\na\nu\nu\nq\n'
+CYCLES=300000000

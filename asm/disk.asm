@@ -2221,7 +2221,9 @@ z_ins_restore_undo
 }
 
 reu_bank_for_undo
-!ifdef TARGET_MEGA65_OR_X16 {
+!ifdef TARGET_NEO {
+	!byte $00 ; Neo : toujours disponible (mémoire graphique, undo-neo.asm)
+} else ifdef TARGET_MEGA65_OR_X16 {
 	!byte $00 ; $00 means it's supported by default. May be changed to $ff at boot.
 } else {
 	!byte $ff 	; $ff means no undo. May be changed at boot. Meaning:
@@ -2686,6 +2688,8 @@ do_restore_undo
  	jmp get_page_at_z_pc
 } ; !ifdef Z6_PICTURES / else
 
+} else ifdef TARGET_NEO {
+!source "undo-neo.asm"
 } else {
 	; C64/C128
 

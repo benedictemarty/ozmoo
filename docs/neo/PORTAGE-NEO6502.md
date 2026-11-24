@@ -27,19 +27,21 @@ Les parties sauvées sont écrites à côté : `MINIZORK.SV0` à `MINIZORK.SV9`.
 Dans l'émulateur du firmware : `ruby make.rb -t:neo -s examples/minizork.z3` (exécutable `neo`, à mettre
 dans le `PATH` ou à déclarer dans `.ozmoorc` : `NEO = /chemin/vers/Neo6502Trinity/bin/neo`).
 
-## État (version 0.3.0, sprint 3)
+## État (version 0.4.0, sprint 4)
 
 Vérifié dans l'émulateur `neo` de Trinity (0.16.112), par `make -C tests/neo` :
 
 | Cas | Histoire | Résultat |
 |---|---|---|
 | `czech-z3`, `czech-z4`, `czech-z5`, `czech-z8` | testeur de conformité czech | 349/0, 406/0, 406/0, 367/0 (réussis/échoués) |
-| `praxix` | praxix.z5, commande `all` | « All tests passed. » |
+| `praxix` | praxix.z5, commande `all` | seul `multiundo` échoue (un seul niveau d'annulation, comme sur les autres cibles d'Ozmoo) |
 | `minizork` | minizork.z3 | partie, ligne de statut, `quit` |
 | `vmem-sans-prechargement` | minizork.z3 construit avec `-p:0` | 12 commandes, toute l'histoire lue à la demande |
 | `adventure` | advent_punyinform.z5 (80 Ko, plus que la RAM) | 12 commandes |
 | `sauvegarde` | minizork.z3 | `save` puis `restore` dans l'emplacement 4 |
 | `redemarrage` | minizork.z3 | `restart` (rechargement du `.NEO`) |
+| `annuler` | annuler.z5 (`tests/neo/sources/`) | `save_undo` / `restore_undo` : annulation, puis échec de la seconde (un niveau) |
+| `annuler-adventure` | advent_punyinform.z5 | commande `undo` du jeu |
 | `saisie-chronometree` | chrono.z5 (`tests/neo/sources/`) | `read_char` et `aread` avec délai : routine appelée 10 fois par seconde |
 | `accents` | accents.z5 (`tests/neo/sources/`) | lettres accentuées à l'écran, symboles `{ } ~ \` \| \\ _ ^`, composition `^e` → ê |
 | `clavier-azerty` | accents.z5 avec `-neokbd:fr` | touches é è ç à ù du clavier AZERTY, `^` puis `e` |
@@ -64,6 +66,10 @@ Fonctions :
   majuscule accentuée sans glyphe CP437 est saisie en minuscule.
 - Saisie chronométrée : le temps vient du compteur de trames 5,37 (60 Hz).
 - `save` / `restore` (emplacements 0 à 9), `restart`, `quit` (retour à NeoDOS par 1,3).
+- Annulation (undo), active par défaut (`-u:0` pour la retirer) : un niveau, comme les autres cibles. L'état
+  (page zéro, pile Z, mémoire dynamique) est copié par le blitter (12,2) dans la mémoire graphique `$90`
+  (32 Ko, inutilisée en mode texte) ; make.rb retire l'undo si la mémoire dynamique et la pile dépassent
+  32 Ko. Jeux Z5 et plus : par le jeu (`undo`) ; Z3 : Ctrl-U (non testé : `neo` n'envoie pas Ctrl).
 
 Non testé : la saisie d'une majuscule accentuée (le crochet `hid:` de `neo` n'envoie pas Maj), la sortie vers NeoDOS
 (les tests s'arrêtent avant, par `-neotest`), et **rien n'a encore été essayé sur la carte**.
@@ -75,6 +81,7 @@ Non testé : la saisie d'une majuscule accentuée (le crochet `hid:` de `neo` n'
 | `asm/constants-neo.asm` | carte mémoire, page zéro (celle de la C64), registres de l'API, routines « KERNAL » |
 | `asm/neo.asm` | appel de l'API, clavier, temps, lecture de l'histoire, primitives d'écran du mode 3, tables de caractères |
 | `asm/chars-neo.asm` | caractères : codes internes des lettres accentuées, tables d'entrée et de sortie (remplace les sections `-cm:` de `streams.asm`) |
+| `asm/undo-neo.asm` | annulation : copie de l'état dans la mémoire graphique `$90` par 12,2 |
 | `asm/save-neo.asm` | sauvegarde, restauration, redémarrage (inclus dans la zone `save_restore` de `disk.asm`) |
 | `asm/screenkernal.asm`, `asm/screen.asm` | branches `TARGET_NEO` à côté de celles de l'X16 |
 | `asm/disk.asm`, `asm/ozmoo.asm`, `asm/utilities.asm` | le code de disquette CBM est exclu, la configuration est déjà en mémoire |
@@ -99,6 +106,7 @@ des numéros de la C64, traduits en couleurs CGA du mode 3 (`neo_c64_to_cga`).
 | `$0800-...` | interpréteur, pile Z (`stack_start`) ; pas de cache de pages (`NO_VMEM_CACHE`, comme l'X16) |
 | `story_start-$FBFF` | mémoire dynamique puis blocs de la mémoire virtuelle |
 | `$FC00-$FFFF` | noyau du 6502 et registres de l'API (`$FF00-$FF0F`) |
+| mémoire graphique `$90:0000` | état sauvé pour l'annulation (hors de l'espace du 6502) |
 
 NeoDOS (résident en `$B800-$FBFF`) est écrasé ; `quit` le recharge par 1,3.
 
@@ -128,6 +136,6 @@ pour 12 commandes ; minizork sans préchargement, 55 blocs ; les autres histoire
 ## Limites connues
 
 - Pas de touches de fonction ; pas de glyphe pour les majuscules accentuées absentes du CP437 (À, È, Ê...).
-- Pas d'images Z6, pas de son, pas d'annulation (undo), pas d'historique de défilement, pas de mode sombre.
+- Pas d'images Z6, pas de son, pas d'historique de défilement, pas de mode sombre ; un seul niveau d'annulation.
 - `neo_delay_1ms` est une boucle approximative (≈ 6 000 cycles, en supposant 6,25 MHz) : elle ne sert
   qu'aux pauses de l'affichage.

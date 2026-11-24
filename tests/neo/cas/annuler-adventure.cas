@@ -1,0 +1,4 @@
+# advent_punyinform.z5 : commande undo d'un vrai jeu (Z5, PunyInform), l'undo est actif par défaut.
+STORY=examples/advent_punyinform.z5
+KEYS='\nin\nundo\nlook\nquit\ny\n'
+CYCLES=500000000

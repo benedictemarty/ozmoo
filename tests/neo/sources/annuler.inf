@@ -1,0 +1,29 @@
+! annuler.inf : test de save_undo / restore_undo (Z5).
+! Auteur : bmarty <bmarty@mailo.com> ; domaine public.
+! Chaque commande autre que u et q fait save_undo puis n = n + 1 ; u fait restore_undo ;
+! q termine. Avec « a a a u u q » : la première annulation revient à n = 2, la seconde échoue
+! (un seul niveau d'annulation) : attendu « [annule] n=2 », « [restore_undo=0] », « FIN n=2 ».
+Array buf -> 82;
+Array prs -> 30;
+Global n;
+[ Main r c;
+  print "Annuler^";
+  for (::) {
+    print "n=", n, "> ";
+    buf->0 = 80; buf->1 = 0;
+    @aread buf prs -> r;
+    c = buf->2;
+    if (c == 'q') break;
+    if (c == 'u') {
+      @restore_undo -> r;
+      print "[restore_undo=", r, "]^";
+      continue;
+    }
+    @save_undo -> r;
+    if (r == 2) { print "[annule] n=", n, "^"; continue; }
+    if (r ~= 1) print "[save_undo=", r, "]^";
+    n++;
+  }
+  print "FIN n=", n, "^";
+  @quit;
+];

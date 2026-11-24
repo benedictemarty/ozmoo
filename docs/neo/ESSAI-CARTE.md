@@ -19,7 +19,7 @@ Copier le dossier `OZMOO/` à la racine de la clé USB. Il contient, pour chaque
 | `DRAGONTR` | dragontroll.z5 | jeu Z5 ordinaire |
 | `ETUDE` | etude.z5 | écran, clavier, saisie chronométrée (menu de tests) |
 | `CZECH` | czech.z5 | conformité de l'interpréteur (résultat attendu : 406 réussis, 0 échec) |
-| `PRAXIX` | praxix.z5 | conformité (taper `all`, attendu : « All tests passed. ») |
+| `PRAXIX` | praxix.z5 | conformité (taper `all`, attendu : « 2 tests failed overall: multiundo (2). » : un seul niveau d'annulation, comme sur les autres machines) |
 
 ## Lancer
 
@@ -49,7 +49,9 @@ Noter pour chaque point : OK, KO (avec une photo de l'écran si possible) ou non
    événements doivent arriver à peu près au bon rythme (horloge 5,37 à 60 Hz).
 10. **Accents** : dans NeoDOS, `LOCALE fr` avant de lancer `MINIZORK` ; taper `é è ç à ù`, puis `^` `e`
     (doit donner ê) : les lettres s'affichent avec leur accent (le jeu répond qu'il ne connaît pas le mot).
-11. **Conformité** (`CZECH`, puis `PRAXIX` avec `all`) : comparer avec les résultats attendus
+11. **Annulation** (`ADVENT_P`) : `in`, puis `undo` : « Previous turn undone. » et retour devant le
+    bâtiment (`look`).
+12. **Conformité** (`CZECH`, puis `PRAXIX` avec `all`) : comparer avec les résultats attendus
     ci-dessus.
 
 ## En cas de problème

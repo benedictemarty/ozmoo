@@ -2955,7 +2955,7 @@ def print_usage
 	puts "  -asw: Add the .wav sound files found at the specified path (003.wav - 255.wav)."
 	puts "  -sig: Write Ozmoo's signature into the header. Default is 'noninfocom', i.e. for all non-Infocom games."
 	puts "  -username: Write a username (1-8 characters) into header (Note: only capitals were used by Infocom)."
-	puts "  -u: Add support for UNDO. Enabled by default for MEGA65. Use -u:r for RAM buffer (C128 only)"
+	puts "  -u: Add support for UNDO. Enabled by default for MEGA65 and neo. Use -u:r for RAM buffer (C128 only)"
 	puts "  -x: Auto-replace X with EXAMINE. Default is to enable this for Infocom games that need it only."
 	puts "  -df: Delete files after creating zip archive in ZIP mode. 0 is default. f=force."
 	puts "  storyfile: path optional (e.g. infocom/zork1.z3)"
@@ -4103,6 +4103,7 @@ if $verbose then
 end
 
 $undo = 2 if ($undo == nil and $target == 'mega65') # undo is enabled by default on MEGA65
+$undo = 2 if ($undo == nil and $target == 'neo') # Neo : par defaut, si la memoire graphique (32 Ko) suffit
 $undo = 0 if $undo == nil
 
 undo_size = $dynmem_blocks * $VMEM_BLOCKSIZE + ($stack_pages + 1) * 256
@@ -4114,9 +4115,18 @@ if $undo > 0
 		puts "ERROR: Undo is not supported for build mode P."
 		exit 1
 	end
-	if $target !~ /^(c64|c128|mega65|x16)$/
-		puts "ERROR: Undo is only supported for the MEGA65, Commander X16, C64 and C128 target platforms."
+	if $target !~ /^(c64|c128|mega65|x16|neo)$/
+		puts "ERROR: Undo is only supported for the MEGA65, Commander X16, C64, C128 and Neo6502 target platforms."
 		exit 1
+	end
+	if $target == 'neo' and undo_size > 32*1024
+		# Neo : l'undo est copie dans la memoire graphique ($90, 32 Ko)
+		if $undo == 1
+			puts "ERROR: Dynmem + stack (#{undo_size} bytes) too large for UNDO on neo (32 KB graphics memory)."
+			exit 1
+		else
+			$undo = 0
+		end
 	end
 	if $undo_ram == 1
 		$GENERALFLAGS.push('UNDO_RAM')
