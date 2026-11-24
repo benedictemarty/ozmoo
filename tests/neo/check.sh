@@ -11,6 +11,7 @@
 #   OPTS="-neokbd:fr"               options de make.rb (facultatif)
 #   HIDKEYS=1f,24,28                codes HID bruts, à la place de KEYS (facultatif)
 #   LECTURES=1-40                   bornes du nombre de blocs lus dans l'histoire (facultatif)
+#   SI_PRESENT=1                    cas sauté si STORY est absente (jeux commerciaux gardés hors du dépôt)
 # et par tests/neo/cas/NOM.attendu : une expression régulière (grep -E) par ligne, chacune
 # devant correspondre à au moins une ligne de l'écran final.
 # Auteur : bmarty <bmarty@mailo.com>
@@ -19,8 +20,9 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 NAME=${1:?nom du cas}
 CAS="$HERE/cas/$NAME.cas"; ATT="$HERE/cas/$NAME.attendu"
 [ -r "$CAS" ] && [ -r "$ATT" ] || { echo "cas introuvable : $NAME"; exit 2; }
-STORY=""; KEYS=""; KEYSTART=20000000; CYCLES=400000000; OPTS=""; HIDKEYS=""; LECTURES=""
+STORY=""; KEYS=""; KEYSTART=20000000; CYCLES=400000000; OPTS=""; HIDKEYS=""; LECTURES=""; SI_PRESENT=""
 . "$CAS"
+if [ -n "$SI_PRESENT" ] && [ ! -r "$HERE/../../$STORY" ]; then echo "SAUTÉ : $NAME ($STORY absente)"; exit 0; fi
 OUT="$HERE/../../build-neo/$NAME.ecran"
 mkdir -p "$(dirname "$OUT")"
 # shellcheck disable=SC2086

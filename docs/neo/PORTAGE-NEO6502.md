@@ -116,6 +116,17 @@ Le chargeur du firmware (3,2) prend le canal 0 : l'histoire est ouverte sur le *
 la partie. Les sauvegardes passent par 3,3 Store File et 3,2 Load File (taille vérifiée par 3,16 avant de
 charger).
 
+## Jeux d'Infocom (essais locaux)
+
+Les jeux commerciaux ne sont pas dans le dépôt. Les cas `infocom-*` de `tests/neo/cas/` (`SI_PRESENT=1`)
+jouent des histoires tirées de l'image Macintosh « Infocom Masterpieces » si elles sont présentes dans
+`../infocom-masterpieces/jeux/` (à côté du dépôt), et sont sautés sinon. Extraction (hfsutils) : la partie
+données de chaque programme Mac `IN..` est l'histoire (`hmount`, puis `hcopy -r`).
+
+Essayés dans `neo` (0.4.0) : Zork I, Trinity (37,7 Ko de mémoire dynamique, 137 blocs lus pour 4
+commandes), Sherlock (cas de test) ; A Mind Forever Voyaging, Beyond Zork, Border Zone (horloge en temps
+réel) démarrent et répondent (captures, pas de cas).
+
 ## Essai sur la carte
 
 `tests/neo/paquet-cle.sh` (ou `make -C tests/neo paquet`) prépare `build-neo/cle/OZMOO/` : six histoires

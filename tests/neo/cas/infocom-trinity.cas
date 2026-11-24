@@ -1,0 +1,6 @@
+# Trinity (Infocom, v4, release 12) : 37,7 Ko de mémoire dynamique (74 blocs), la plus grosse des jeux
+# texte de l'image ; il ne reste que 24 blocs de mémoire virtuelle ; undo retiré (plus de 32 Ko).
+STORY=../infocom-masterpieces/jeux/trinity.z4
+SI_PRESENT=1
+KEYS='look\ninventory\nn\nquit\ny\n'
+LECTURES=1-250   # 137 en 0.4.0

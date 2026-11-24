@@ -1,0 +1,4 @@
+# Sherlock (Infocom, v5, release 26), ligne d'état sur trois zones avec l'heure du jeu.
+STORY=../infocom-masterpieces/jeux/sherlock.z5
+SI_PRESENT=1
+KEYS='\n\nlook\nquit\ny\n'

@@ -1,0 +1,5 @@
+# Zork I (Infocom, v3, release 88) tiré de l'image « Infocom Masterpieces » (Mac), gardé hors du dépôt
+# dans ../infocom-masterpieces/jeux/ (voir docs/neo/PORTAGE-NEO6502.md) ; sauté si absent.
+STORY=../infocom-masterpieces/jeux/zork_i.z3
+SI_PRESENT=1
+KEYS='open mailbox\nread leaflet\nn\nn\nup\nquit\ny\n'
