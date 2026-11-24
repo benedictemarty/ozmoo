@@ -2,3 +2,4 @@ STORY=test/czech.z5
 KEYS='\n'
 KEYSTART=350000000
 CYCLES=600000000
+LECTURES=0-0    # tout est préchargé dans le .NEO

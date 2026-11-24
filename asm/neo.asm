@@ -21,6 +21,9 @@ neo_tmp_ink			!byte 0
 neo_tmp_paper		!byte 0
 neo_save_x			!byte 0
 neo_save_y			!byte 0
+!ifdef NEO_TEST {
+neo_test_reads		!byte 0, 0 ; appels de neo_readblocks (un bloc de 512 octets chacun en jeu)
+}
 
 ; ---------------------------------------------------------------------------------
 ; neo_api_call : A = fonction, X = groupe ; les paramètres sont déjà en $FF04...
@@ -202,6 +205,11 @@ neo_reset
 ; dans memory.dump (12,2 Simple Blit Copy).
 NEO_TEST_DUMP = $f000 ; dans la mémoire virtuelle (on ne revient pas), loin du code qui copie
 neo_test_dump_screen
+	; nombre de blocs de 512 octets lus dans l'histoire, après la grille (NEO_TEST_DUMP + 2000)
+	lda neo_test_reads
+	sta NEO_TEST_DUMP + 2000
+	lda neo_test_reads + 1
+	sta NEO_TEST_DUMP + 2001
 	lda #$80
 	sta neo_api_param
 	lda #0
@@ -310,6 +318,12 @@ neo_fatal_message
 ; est l'histoire telle quelle : la page n est à l'octet n * 256.
 ; ---------------------------------------------------------------------------------
 neo_readblocks
+!ifdef NEO_TEST {
+	inc neo_test_reads
+	bne +
+	inc neo_test_reads + 1
++
+}
 	lda #NEO_STORY_CHANNEL
 	sta neo_api_param
 	lda #0

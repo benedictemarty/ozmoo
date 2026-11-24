@@ -79,6 +79,8 @@
 	VMEM_END_PAGE = $fc
 	SUPPORT_REU = 0
 	SUPPORT_80COL = 1
+	; Pas de cache de pages : toute la memoire virtuelle est sous $FC00, lue directement
+	NO_VMEM_CACHE = 1
 	!ifndef SLOW {
 		SLOW = 1
 	}

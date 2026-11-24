@@ -1,3 +1,4 @@
 STORY=examples/advent_punyinform.z5
 KEYS='east\ntake all\nwest\nsouth\nsouth\nsouth\nunlock grate\nopen grate\ndown\nwest\ninventory\nquit\ny\n'
 CYCLES=1200000000
+LECTURES=1-40   # 27 lectures en 0.3.0

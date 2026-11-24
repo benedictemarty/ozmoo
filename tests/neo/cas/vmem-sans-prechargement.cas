@@ -2,3 +2,4 @@ STORY=examples/minizork.z3
 KEYS='open mailbox\nread leaflet\nnorth\neast\nopen window\nenter house\nwest\ntake lamp\nmove rug\nopen trap door\nturn on lamp\ndown\nquit\ny\n'
 CYCLES=900000000
 OPTS='-p:0'
+LECTURES=1-70   # 55 lectures en 0.3.0 : toute l'histoire est lue à la demande

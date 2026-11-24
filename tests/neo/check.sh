@@ -10,6 +10,7 @@
 #   CYCLES=400000000                cycles au plus (facultatif)
 #   OPTS="-neokbd:fr"               options de make.rb (facultatif)
 #   HIDKEYS=1f,24,28                codes HID bruts, à la place de KEYS (facultatif)
+#   LECTURES=1-40                   bornes du nombre de blocs lus dans l'histoire (facultatif)
 # et par tests/neo/cas/NOM.attendu : une expression régulière (grep -E) par ligne, chacune
 # devant correspondre à au moins une ligne de l'écran final.
 # Auteur : bmarty <bmarty@mailo.com>
@@ -18,7 +19,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 NAME=${1:?nom du cas}
 CAS="$HERE/cas/$NAME.cas"; ATT="$HERE/cas/$NAME.attendu"
 [ -r "$CAS" ] && [ -r "$ATT" ] || { echo "cas introuvable : $NAME"; exit 2; }
-STORY=""; KEYS=""; KEYSTART=20000000; CYCLES=400000000; OPTS=""; HIDKEYS=""
+STORY=""; KEYS=""; KEYSTART=20000000; CYCLES=400000000; OPTS=""; HIDKEYS=""; LECTURES=""
 . "$CAS"
 OUT="$HERE/../../build-neo/$NAME.ecran"
 mkdir -p "$(dirname "$OUT")"
@@ -29,4 +30,8 @@ while IFS= read -r motif; do
 	[ -z "$motif" ] && continue
 	grep -Eq -- "$motif" "$OUT" || { echo "  absent : $motif"; fail=1; }
 done < "$ATT"
+if [ -n "$LECTURES" ]; then
+	n=$(cat "$OUT.lectures"); lo=${LECTURES%-*}; hi=${LECTURES#*-}
+	[ "$n" -ge "$lo" ] && [ "$n" -le "$hi" ] || { echo "  lectures de blocs : $n, attendu $LECTURES"; fail=1; }
+fi
 if [ $fail = 0 ]; then echo "OK : $NAME"; else echo "ÉCHEC : $NAME (écran dans $OUT)"; cat "$OUT"; exit 1; fi

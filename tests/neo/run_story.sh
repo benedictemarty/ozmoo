@@ -11,6 +11,7 @@
 # l'écran d'accueil est désactivé (-sw:0).
 # Variable HIDKEYS : codes HID bruts en hexadécimal (crochet hid: de neo, sans modificateur),
 # envoyés à partir de KEYSTART, par exemple avec la locale -neokbd:fr pour les touches accentuées.
+# Le nombre de lectures de blocs de l'histoire (neo_readblocks) est écrit dans SORTIE.txt.lectures.
 # Variable SHOT : si définie, capture PNG de l'écran un million de cycles avant la fin.
 # Variable NEO : chemin de l'émulateur (défaut : ~/Projets/Neo6502Trinity/bin/neo).
 # Auteur : bmarty <bmarty@mailo.com>
@@ -42,5 +43,6 @@ m = open(sys.argv[1], 'rb').read()
 g = m[0xf000:0xf000 + 2000]
 lines = [''.join(chr(c) if 32 <= c < 127 else bytes([c]).decode('cp437') if c >= 128 else '.' for c in g[r*80:r*80+80]).rstrip() for r in range(25)]
 open(sys.argv[2], 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
+open(sys.argv[2] + '.lectures', 'w').write('%d\n' % (m[0xf000 + 2000] + 256 * m[0xf000 + 2001]))
 PY
 rm -f "build-neo-$name.log"
