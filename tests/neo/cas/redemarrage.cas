@@ -1,0 +1,3 @@
+STORY=examples/minizork.z3
+KEYS='open mailbox\nrestart\ny\nscore\nquit\ny\n'
+CYCLES=600000000

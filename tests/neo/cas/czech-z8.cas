@@ -1,0 +1,4 @@
+STORY=tests/neo/histoires/czech8.z8
+KEYS='\n'
+KEYSTART=350000000
+CYCLES=600000000

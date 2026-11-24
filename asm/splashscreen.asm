@@ -62,6 +62,11 @@ splash_line_y
 	adc #20
 +
 }
+!ifdef TARGET_NEO {
+	; Lignes centrees pour 40 colonnes, ecran de 80 colonnes
+	clc
+	adc #20
+}
 !ifdef TARGET_MEGA65 {
 !ifndef Z6_FCM_40 {
 	; The splash lines are centred for 40 columns; an 80-column MEGA65 screen

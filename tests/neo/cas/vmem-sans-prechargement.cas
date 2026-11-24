@@ -1,0 +1,4 @@
+STORY=examples/minizork.z3
+KEYS='open mailbox\nread leaflet\nnorth\neast\nopen window\nenter house\nwest\ntake lamp\nmove rug\nopen trap door\nturn on lamp\ndown\nquit\ny\n'
+CYCLES=900000000
+OPTS='-p:0'

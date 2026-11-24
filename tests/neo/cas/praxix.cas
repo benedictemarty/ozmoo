@@ -1,0 +1,3 @@
+STORY=test/praxix.z5
+KEYS='all\nquit\n'
+CYCLES=900000000

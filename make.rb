@@ -21,6 +21,7 @@ if $is_windows then
 		'ACME' => "C:\\WoInstall\\acme0.97win\\acme\\acme.exe",
 		'ZIP' => "\"C:\\Program Files\\7-Zip\\7z.exe\" a -bso0 -bse0",
 		'PYTHON' => 'python',
+		'NEO' => "neo.exe", # Emulateur du firmware Neo6502 (Trinity)
 	}
 	$commandline_quotemark = "\""
 else
@@ -38,6 +39,7 @@ else
 		'ACME' => "acme",
 		'ZIP' => "zip -r",
 		'PYTHON' => 'python3',
+		'NEO' => "neo", # Emulateur du firmware Neo6502 (Trinity), bin/neo
 	}
 	$commandline_quotemark = "'"
 end
@@ -68,7 +70,7 @@ unless $settings_file.empty?
 		if line =~ /^\s*'?(\w+)'?\s*=>?(.*)/ then
 			name = $1.upcase
 			val = $2.chomp.strip
-			if name =~ /^(X16|X64|X128|XPLUS4|MEGA65|C1541|EXOMIZER|ACME|ZIP|PYTHON)$/ then
+			if name =~ /^(X16|X64|X128|XPLUS4|MEGA65|C1541|EXOMIZER|ACME|ZIP|PYTHON|NEO)$/ then
 				$executables[name] = val
 			end
 		end
@@ -155,6 +157,7 @@ MODE_71 = 6
 MODE_71D = 7
 MODE_81 = 8
 MODE_ZIP = 9
+MODE_NEO = 10
 
 DISKNAME_BOOT = 128
 DISKNAME_STORY = 129
@@ -1392,7 +1395,7 @@ end
 def build_interpreter()
 	necessarysettings =  " --setpc #{$start_address} -DCACHE_PAGES=#{$CACHE_PAGES} -DSTACK_PAGES=#{$stack_pages} -D#{$ztype}=1"
 	necessarysettings +=  " -DCONF_TRK=#{$CONFIG_TRACK}" if $CONFIG_TRACK
-	if $target == 'x16' then
+	if $target == 'x16' or $target == 'neo' then
 		necessarysettings +=  " --cpu 65c02"
 	elsif $target == 'mega65' then
 		necessarysettings +=  " --cpu m65"
@@ -1569,6 +1572,7 @@ def read_labels(label_file_name)
 		$program_end_address = $1.to_i(16) if line =~ /\tprogram_end\t=\s*\$(\w{3,4})\b/;
 		$loader_pic_start = $1.to_i(16) if line =~ /\tloader_pic_start\t=\s*\$(\w{3,4})\b/;
 		$config_load_address = $1.to_i(16) if line =~ /\tconfig_load_address\t=\s*\$(\w{3,4})\b/;
+		$program_start_address = $1.to_i(16) if line =~ /\tprogram_start\t=\s*\$(\w{3,4})\b/;
 	end
 end
 
@@ -1769,7 +1773,10 @@ def add_boot_file(finaldiskname, diskimage_filename)
 end
 
 def play(filename, storyname)
-	if $target == "x16" then
+	if $target == "neo" then
+		# L'emulateur du firmware lit la cle (storage) dans le dossier du jeu.
+		command = "cd #{filename} && #{$executables['NEO']} #{$neo_program_name} path:."
+	elsif $target == "x16" then
 		if $executables.has_key?('X16') then
 			# The command cd's into the game directory (the emulator must run
 			# from where [ZCODE] and the [P###] pictures sit), so the X16 path
@@ -2807,6 +2814,67 @@ def build_zip(storyname, diskimage_filename, config_data, vmem_data,
     nil # Signal success
 end
 
+# Ecrit un fichier executable .NEO (format du chargeur du firmware Neo6502) :
+# en-tete 03 'N' 'E' 'O', version 0.0, adresse d'execution ; puis des blocs
+# (drapeau $80 = un autre bloc suit, adresse, longueur, commentaire termine par 0).
+def write_neo_file(filename, exec_address, blocks)
+	data = [0x03, 0x4e, 0x45, 0x4f, 0, 0, exec_address & 0xff, exec_address >> 8]
+	blocks.each_with_index do |(address, bytes), i|
+		if bytes.length > 0xffff
+			puts "ERROR: .NEO block at $#{address.to_s(16)} is too long (#{bytes.length} bytes)."
+			exit 1
+		end
+		more = (i < blocks.length - 1) ? 0x80 : 0
+		data += [more, address & 0xff, address >> 8, bytes.length & 0xff, bytes.length >> 8, 0]
+		data += bytes.unpack("C*")
+	end
+	File.binwrite(filename, data.pack("C*"))
+end
+
+def build_neo(storyname, config_data, vmem_data, vmem_contents, preload_max_vmem_blocks)
+	# Programme : l'interpreteur (sans les deux octets d'adresse du format cbm),
+	# puis la memoire dynamique et les blocs pre-charges, puis la configuration
+	# (identifiant du jeu, table de la memoire virtuelle) a config_load_address.
+	interpreter = File.binread($ozmoo_file)[2 .. -1]
+	if $start_address + interpreter.length > $storystart
+		puts "ERROR: The interpreter overlaps the story start."
+		exit 1
+	end
+	room_blocks = ($memory_end_address - $storystart) / $VMEM_BLOCKSIZE - $dynmem_blocks
+	if room_blocks < 2 and $story_size > $dynmem_blocks * $VMEM_BLOCKSIZE
+		puts "ERROR: Dynamic memory is too big (#{$dynmem_blocks * $VMEM_BLOCKSIZE} bytes): no room left for virtual memory."
+		exit 1
+	end
+	preload_blocks = [vmem_data[3], preload_max_vmem_blocks, room_blocks].min
+	preload_blocks = 0 if preload_blocks < 0
+	vmem_data[3] = preload_blocks
+	limit_vmem_data(vmem_data, 512 - config_data.length)
+	config = config_data + vmem_data
+	if config.length > 512
+		puts "ERROR: The configuration data is too long (#{config.length} bytes)."
+		exit 1
+	end
+	memory = vmem_contents[0 .. ($dynmem_blocks + preload_blocks) * $VMEM_BLOCKSIZE - 1]
+	unless $program_start_address
+		puts "ERROR: Label program_start not found."
+		exit 1
+	end
+	outdir = File.join($EXECDIR, "neo_#{File.basename(storyname)}")
+	FileUtils.mkdir_p(outdir)
+	neofile = File.join(outdir, $neo_program_name)
+	write_neo_file(neofile, $program_start_address, [
+		[$start_address, interpreter],
+		[$storystart, memory],
+		[$config_load_address, config.pack("C*")]
+	])
+	File.binwrite(File.join(outdir, $neo_story_name), $story_file_data)
+	puts "Interpreter: $#{$start_address.to_s(16)}-$#{($start_address + interpreter.length - 1).to_s(16)}, story start $#{$storystart.to_s(16)}." if $verbose
+	puts "Neo6502: #{$dynmem_blocks} dynmem blocks and #{preload_blocks} preloaded vmem blocks of #{$VMEM_BLOCKSIZE} bytes in the .NEO."
+	$bootdiskname = outdir
+	puts "Successfully built game in #{outdir}/ (#{$neo_program_name}, #{$neo_story_name})"
+	nil
+end
+
 def print_usage_and_exit
 	print_usage
 	exit 1
@@ -2827,7 +2895,8 @@ def print_usage
 	puts "         [-dt:\"text\"] [-rd] [-as(a|w) <soundpath>]"
 	puts "         [-sig[:0|1|noninfocom]] [-username:\"text\"]"
 	puts "         [-u[:0|1|r]] [-x[:0|1]] [-df[:0|1|f]] <storyfile>"
-	puts "  -t: specify target machine. Available targets are c64 (default), c128, plus4, mega65 and x16."
+	puts "  -t: specify target machine. Available targets are c64 (default), c128, plus4, mega65, x16 and neo (Neo6502, Trinity firmware)."
+	puts "  -neotest: (neo) test build: on quit, copy the text screen to RAM and stop the emulator."
 	puts "  -S1|-S2|-D2|-D3|-71|-71D|-81|-P|-ZIP: build mode. Defaults to S1 (71 for C128, 81 for MEGA65, ZIP for X16). See docs."
 	puts "  -v: Verbose mode. Print as much details as possible about what make.rb is doing."
 	puts "  -p: preload a maximum of n virtual memory blocks to make game faster at start."
@@ -3005,9 +3074,15 @@ begin
 		elsif arg =~ /^-p:(\d+)$/ then
 			preload_max_vmem_blocks = $1.to_i
 			limit_preload_vmem_blocks = true
-		elsif arg =~ /^-t:(c64|c128|mega65|plus4|x16)$/ then
+		elsif arg =~ /^-t:(c64|c128|mega65|plus4|x16|neo)$/ then
 			$target = $1
-			if $target == "mega65" then
+			if $target == "neo" then
+				# Neo6502 / firmware Trinity : RAM plate de $0000 a $FBFF, programme en $0800
+				$start_address = 0x0800
+				$memory_end_address = 0xfc00
+				$unbanked_ram_end_address = $memory_end_address
+				$normal_ram_end_address = $memory_end_address
+			elsif $target == "mega65" then
 			    # $start_address = 0x1001
 				$start_address = 0x1800
 			elsif $target == "x16" then
@@ -3027,6 +3102,8 @@ begin
 				$normal_ram_end_address = $memory_end_address
 				$CACHE_PAGES = 4 # Cache is static size on C128
 			end
+		elsif arg =~ /^-neotest$/ then
+			$neo_test = true
 		elsif arg =~ /^-ZIP$/ then
 			mode = MODE_ZIP
 		elsif arg =~ /^-P$/ then
@@ -3397,6 +3474,8 @@ unless mode
 		mode = MODE_71
 	elsif $target == 'x16'
 		mode = MODE_ZIP
+	elsif $target == 'neo'
+		mode = MODE_NEO
 	elsif $target == 'mega65'
 		mode = MODE_81
 	else 
@@ -3430,6 +3509,23 @@ end
 
 if mode == MODE_ZIP and $target != 'x16'
 	puts "ERROR: Build mode ZIP is not supported on this target platform."
+	exit 1
+end
+
+if $target == 'neo'
+	if mode != MODE_NEO
+		puts "ERROR: Only the default build mode is supported on the neo target platform."
+		exit 1
+	end
+	# Pas d'ecran en memoire : ni mode sombre (il recolore la RAM couleur) ni
+	# historique de defilement (il relit l'ecran). Pas de tampon de pre-chargement :
+	# tous les blocs pre-charges sont dans le .NEO.
+	$GENERALFLAGS.push('NODARKMODE') unless $GENERALFLAGS.include?('NODARKMODE')
+	$GENERALFLAGS.push('NOSCROLLBACK') unless $GENERALFLAGS.include?('NOSCROLLBACK')
+	$GENERALFLAGS.push('NEO_TEST') if $neo_test
+	$no_sector_preload = true
+elsif mode == MODE_NEO
+	puts "ERROR: This build mode is only supported on the neo target platform."
 	exit 1
 end
 
@@ -3971,6 +4067,11 @@ if $target == 'c128' and $interpreter_number == nil
 	$interpreter_number = 7
 end
 
+if $target == 'neo' and $zcode_version == 6
+	puts "ERROR: Z-machine version 6 is not supported yet on the neo target platform."
+	exit 1
+end
+
 
 # get dynmem size (in vmem blocks)
 $dynmem_blocks = ($static_mem_start.to_f / $VMEM_BLOCKSIZE).ceil
@@ -4071,6 +4172,24 @@ File.write(File.join($TEMPDIR, 'splashlines.asm'), splash)
 file_name = File.read(File.join($SRCDIR, 'file-name.tpl'))
 file_name.sub!("@fn@", $file_name)
 File.write(File.join($TEMPDIR, 'file-name.asm'), file_name)
+
+if $target == 'neo'
+	# Noms des fichiers sur la cle : <JEU>.NEO (le programme), <JEU>.<ext> (l'histoire,
+	# telle quelle apres les correctifs eventuels) et <JEU>.SV0 a .SV9 (les parties).
+	$neo_base = File.basename(storyname).upcase.gsub(/[^A-Z0-9_-]/, '')[0, 8]
+	$neo_base = 'STORY' if $neo_base.empty?
+	story_ext = File.extname($story_file).upcase.gsub(/[^.A-Z0-9]/, '')
+	story_ext = '.DAT' if story_ext.length < 2
+	$neo_story_name = $neo_base + story_ext
+	$neo_program_name = $neo_base + '.NEO'
+	neo_files = "; Fichier genere par make.rb : noms des fichiers du jeu sur la cle (Neo6502)\n" +
+		"neo_story_filename\n\t!byte #{$neo_story_name.length}\n\t!text \"#{$neo_story_name}\"\n" +
+		"neo_program_filename\n\t!byte #{$neo_program_name.length}\n\t!text \"#{$neo_program_name}\"\n" +
+		"neo_program_filename_len = #{$neo_program_name.length}\n" +
+		"neo_save_filename\n\t!byte #{$neo_base.length + 4}\n\t!text \"#{$neo_base}.SV\"\n" +
+		"neo_save_filename_digit\n\t!text \"0\"\n"
+	File.write(File.join($TEMPDIR, 'neo-files.asm'), neo_files)
+end
 
 # Set $no_sector_preload if we can be almost certain it won't be needed anyway
 if $target != 'c128' and limit_preload_vmem_blocks == false
@@ -4291,6 +4410,8 @@ when MODE_71D
 when MODE_81
 	diskimage_filename = File.join($TEMPDIR, "temp1.d81")
 	error = build_81(storyname, diskimage_filename, config_data.dup, vmem_data.dup, vmem_contents, preload_max_vmem_blocks)
+when MODE_NEO
+	error = build_neo(storyname, config_data.dup, vmem_data.dup, vmem_contents, preload_max_vmem_blocks)
 when MODE_ZIP
 	diskimage_filename = File.join($TEMPDIR, "temp1.zip")
 	error = build_zip(storyname, diskimage_filename, config_data.dup, vmem_data.dup, vmem_contents, preload_max_vmem_blocks)

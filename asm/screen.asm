@@ -29,7 +29,8 @@ init_screen_colours
 	; calculate the position for the more prompt
 	; (self modifying code since we don't want to
 	; ZP space is limited)
-!ifndef TARGET_X16 {
+!ifdef TARGET_NEO {
+} else ifndef TARGET_X16 {
 	lda s_screen_size + 1
 	clc
 	adc #>SCREEN_ADDRESS
@@ -551,6 +552,33 @@ increase_num_rows
 show_more_prompt
 	; time to show [More]
 	jsr clear_num_rows
+!ifdef TARGET_NEO {
+!ifdef NEO_TEST {
+	; Build de test : pas d'attente, les tests ne voient que l'ecran final
+	jmp .increase_num_rows_done
+}
+	; Un « * » en inverse dans le coin bas droit, qui clignote jusqu'a une touche
+	ldy #0
+.neo_more_blink
+	tya
+	and #1
+	bne +
+	jsr neo_show_more
+	jmp ++
++	jsr neo_hide_more
+++	ldx #40
+-	jsr wait_a_jiffy
+	jsr getchar_and_maybe_toggle_darkmode
+	cmp #0
+	bne .neo_more_done
+	dex
+	bne -
+	iny
+	jmp .neo_more_blink
+.neo_more_done
+	jsr neo_hide_more
+	jmp .increase_num_rows_done
+}
 
 !ifdef TARGET_C128 {
     bit COLS_40_80
@@ -812,6 +840,11 @@ print_line_from_buffer
 	bne - ; Always branch
 ++
 	
+} else ifdef TARGET_NEO {
+	lda zp_screenrow
+	sta zp_screenline + 1
+	ldy first_buffered_column
+	jsr neo_print_buffer_line
 } else {
 	!ifdef TARGET_MEGA65 {
 		jsr colour2k	

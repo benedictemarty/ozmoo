@@ -8,6 +8,12 @@ Written by Johan Berntsson and Fredrik Ramsberg in 2018-2026
 
 ![Mini-Zork I running on Ozmoo](https://github.com/johanberntsson/ozmoo/blob/master/screenshots/minizork.png)
 
+> **Branche `neo6502-trinity` (bmarty) : portage vers la Neo6502 avec le firmware Trinity.**
+> Cible `-t:neo`, écran texte 80 × 25 (mode 3 de Trinity), histoire lue sur la clé USB à la demande.
+> Construction, état et limites : [docs/neo/PORTAGE-NEO6502.md](docs/neo/PORTAGE-NEO6502.md).
+>
+> ⚠️ Avertissement : ce programme est un programme généré par Claude Code sous la supervision d'un être humain : il a été utilisé pour améliorer, développer, rendre compatible ou traduire ce logiciel.
+
 
 ## Status
 

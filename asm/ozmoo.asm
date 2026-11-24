@@ -72,6 +72,17 @@
 !ifdef TARGET_C64 {
 	TARGET_ASSIGNED = 1
 }
+!ifdef TARGET_NEO {
+	; Neo6502 avec le firmware Trinity : 64 Ko de RAM plate, aucune banque.
+	; La memoire virtuelle s'etend jusqu'au noyau du 6502 en $FC00.
+	TARGET_ASSIGNED = 1
+	VMEM_END_PAGE = $fc
+	SUPPORT_REU = 0
+	SUPPORT_80COL = 1
+	!ifndef SLOW {
+		SLOW = 1
+	}
+}
 !ifdef TARGET_C128 {
 	NO_VMEM_CACHE = 1
 	TARGET_PLUS4_OR_C128 = 1
@@ -957,6 +968,8 @@ c128_border_phase1
 
 } else ifdef TARGET_X16 {
 !source "constants-x16.asm"
+} else ifdef TARGET_NEO {
+!source "constants-neo.asm"
 } else {
 !source "constants.asm"
 }
@@ -1235,6 +1248,8 @@ game_id		!byte 0,0,0,0
 	lda #$10
 	sta $2c
 	jmp basic_reset
+} else ifdef TARGET_NEO {
+	jmp neo_reset
 } else ifdef TARGET_X16 {
 !ifdef TARGET_X16 {
 	!ifdef CUSTOM_FONT {
@@ -1265,6 +1280,9 @@ statmem_reu_banks !byte 0
 !source "smoothscroll.asm"
 }
 !source "utilities.asm"
+!ifdef TARGET_NEO {
+!source "neo.asm"
+}
 !ifdef SCROLLBACK {
 !source "scrollback.asm"
 }
@@ -2114,6 +2132,9 @@ fkey_codes !byte $85,$89,$86,$8a,$87,$8b,$88,$8c
 }
 
 deletable_init_start
+!ifdef TARGET_NEO {
+	jsr neo_init
+}
 
 ; Moved MEGA65 pointer init here
 !ifdef TARGET_MEGA65 {
@@ -2439,6 +2460,8 @@ deletable_init
 	inx
 	bne -
 }
+!ifndef TARGET_NEO {
+	; (Neo : la configuration est deja en place, chargee avec le .NEO)
 	lda #<config_load_address
 	sta readblocks_mempos
 	lda #>config_load_address
@@ -2452,6 +2475,7 @@ deletable_init
 	ldx #1
 	ldy boot_device
 	jsr read_track_sector
+}
 
 ; Copy game id
 	ldx #3
@@ -2474,7 +2498,9 @@ deletable_init
 	dex
 	bne -
 	
+!ifndef TARGET_NEO {
 	jsr auto_disk_config
+}
 ;	jsr init_screen_colours
 } else { ; End of !ifdef VMEM
 !ifdef TARGET_MEGA65_OR_X16 {
@@ -2622,7 +2648,9 @@ deletable_init
 
 	jsr prepare_static_high_memory
 
+!ifndef TARGET_NEO {
 	jsr insert_disks_at_boot
+}
 
 !ifndef NOSECTORPRELOAD {
 
@@ -3175,9 +3203,14 @@ end_of_routines_in_stack_space
 	!byte >stack_start
 story_start
 
+!ifdef TARGET_NEO {
+	config_load_address = NEO_CONFIG_ADDRESS
+}
+!ifndef config_load_address {
 !ifdef vmem_cache_size {
 !if vmem_cache_size >= $200 {
 	config_load_address = vmem_cache_start
+}
 }
 }
 !ifndef config_load_address {

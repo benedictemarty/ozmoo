@@ -34,7 +34,9 @@ SHOWUNDO=1
 }
 
 splashline6
-!ifdef TARGET_X16 {
+!ifdef TARGET_NEO {
+	!pet "      Neo6502 - Trinity firmware",0
+} else ifdef TARGET_X16 {
 	!pet "       Ctrl: 0-8=Scroll slowness",0
 } else ifdef SHOWUNDO {
 	!pet " Ctrl: D=Reset device# K=Key rpt U=Undo",0
@@ -50,6 +52,8 @@ splashline7alt
 	!pet "           0-8=Scroll slowness",0
 }
 } else ifdef TARGET_X16 {
+	!pet "",0
+} else ifdef TARGET_NEO {
 	!pet "",0
 } else {
 	!pet "           0-8=Scroll slowness",0

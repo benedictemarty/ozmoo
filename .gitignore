@@ -61,3 +61,13 @@
 /plus4_*.d81
 /x16_*.zip
 /x16_*/
+
+# Neo6502 / Trinity (fork bmarty) : fichiers tenus en local uniquement
+/CLAUDE.md
+/CHANGELOG.md
+/ROADMAP.md
+/changelog.md
+/roadmap.md
+/build-neo/
+/neo_*/
+/build-neo-*.log

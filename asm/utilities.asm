@@ -605,7 +605,8 @@ fatalerror
 	jsr printstring
 	pla
 	tax
-!ifndef TARGET_X16 {
+!ifdef TARGET_NEO {
+} else ifndef TARGET_X16 {
 	stx SCREEN_ADDRESS + 79
 }
 	lda #0

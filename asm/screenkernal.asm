@@ -524,6 +524,10 @@ s_delete_cursor
 }
 !ifdef TARGET_X16 {
 	jmp VERAPrintChar
+} else ifdef TARGET_NEO {
+	ldy zp_screencolumn
+	ldx #0
+	jmp neo_print_cp437
 } else {
 	ldy zp_screencolumn
 	sta (zp_screenline),y
@@ -602,6 +606,9 @@ s_printchar
 .col80_1_end
 } else ifdef TARGET_X16 {
     jsr VERAPrintChar
+} else ifdef TARGET_NEO {
+	ldx #0
+	jsr neo_print_cp437
 } else {
 	sta (zp_screenline),y
 	!ifdef TARGET_MEGA65 {
@@ -661,8 +668,10 @@ s_printchar
 	pla ; Doesn't affect C
 	bcs .outside_current_window
 .resume_printing_normal_char	
+!ifndef TARGET_NEO {
 	jsr convert_petscii_to_screencode
 	ora s_reverse
+}
 	pha
 	jsr .update_screenpos
 	pla
@@ -684,6 +693,9 @@ s_printchar
 	jsr VERAPrintChar
 	; lda s_colour
 	; jsr VERAPrintColourAfterChar
+} else ifdef TARGET_NEO {
+	ldx s_reverse
+	jsr neo_print_petscii
 } else {
 	sta (zp_screenline),y
 	!ifdef TARGET_MEGA65 {
@@ -730,6 +742,8 @@ s_printchar
 .col80_3_end
 } else ifdef TARGET_X16 {
 	jsr .s_scroll_vera
+} else ifdef TARGET_NEO {
+	jsr .s_scroll_neo
 } else {
 	jsr .s_scroll
 }
@@ -787,6 +801,8 @@ s_printchar
 .col80_4_end
 } else ifdef TARGET_X16 {
 	jsr .s_scroll_vera
+} else ifdef TARGET_NEO {
+	jsr .s_scroll_neo
 } else {
 	jsr .s_scroll
 }
@@ -818,6 +834,13 @@ s_erase_window
 	sta zp_screenline + 1
 	sta zp_colourline + 1
     lda #0
+	sta zp_screenline
+	sta zp_colourline
+} else ifdef TARGET_NEO {
+	; Neo : pas de memoire d'ecran, le pointeur de ligne porte le numero de ligne
+	stx zp_screenline + 1
+	stx zp_colourline + 1
+	lda #0
 	sta zp_screenline
 	sta zp_colourline
 } else ifdef TARGET_MEGA65 {
@@ -967,6 +990,23 @@ s_reset_scrolled_lines
 s_scrolled_lines !byte 0
 }
 
+!ifdef TARGET_NEO {
+.s_scroll_neo
+	; Fait monter la fenetre basse (sous les lignes protegees) d'une ligne : 5,14
+	lda zp_screenrow
+	cmp s_screen_height
+	bpl +
+	rts
++	lda window_start_row + 1 ; how many top lines to protect
+	ldx s_screen_height_minus_one
+	jsr neo_scroll_up
+	lda s_screen_height_minus_one
+	sta zp_screenrow
+	lda #$ff
+	sta s_current_screenpos_row ; force recalculation
+	jmp .update_screenpos
+}
+
 .s_scroll
 	lda zp_screenrow
 	cmp s_screen_height
@@ -1011,7 +1051,8 @@ s_scrolled_lines !byte 0
 +
 }
 
-!ifndef TARGET_X16 {
+!ifdef TARGET_NEO {
+} else ifndef TARGET_X16 {
 ; ----------- Delay for slower scrolling
 
 	ldx scroll_delay
@@ -1246,6 +1287,8 @@ s_erase_line
 	; jsr VDCPrintColour
 	; iny
 	; bne -
+} else ifdef TARGET_NEO {
+	jsr neo_erase_to_eol
 } else {
 
 ; set colour
@@ -1344,8 +1387,11 @@ update_cursor
 	jsr VERASetForegroundColour
 	; lda current_cursor_colour
 	; jsr VERAPrintColourAfterChar
+} else ifdef TARGET_NEO {
+	jsr neo_draw_cursor
 }
-!ifndef TARGET_X16 {
+!ifdef TARGET_NEO {
+} else ifndef TARGET_X16 {
     lda cursor_character
     sta (zp_screenline),y
     lda current_cursor_colour

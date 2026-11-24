@@ -88,6 +88,9 @@ disk_info
 }
 
 readblocks
+!ifdef TARGET_NEO {
+	jmp neo_readblocks
+} else {
 	; read <n> blocks (each 256 bytes) from disc to memory
 	; set values in readblocks_* before calling this function
 	; register: a,x,y
@@ -117,7 +120,9 @@ readblocks
 +   dec readblocks_numblocks        ; loop
 	bne -
 	rts
+} ; !ifdef TARGET_NEO
 
+!ifndef TARGET_NEO { ; Neo : pas de disquette, voir neo_readblocks
 !if SUPPORT_REU = 1 {
 .readblock_from_reu
 	ldx readblocks_currentblock_adjusted
@@ -449,10 +454,14 @@ is_error
 .next_disk_index	!byte 0
 .disk_tracks	!byte 0
 
+} ; !ifndef TARGET_NEO
 
 } ; End of !ifdef VMEM
 
 close_io
+!ifdef TARGET_NEO {
+	rts ; Neo : l'histoire reste ouverte, les parties sont lues et ecrites d'un coup
+} else {
 	lda #$0F      ; filenumber 15
 	jsr kernal_close ; call CLOSE
 
@@ -460,6 +469,7 @@ close_io
 	jsr kernal_close ; call CLOSE
 
 	jmp kernal_clrchn ; call CLRCHN
+}
 
 !ifdef TARGET_MEGA65 {
 !zone drive_status {
@@ -641,6 +651,7 @@ insert_msg_3
 }
 
 !ifdef RESTART_SUPPORTED {
+!ifndef TARGET_NEO { ; Neo : z_ins_restart est dans save-neo.asm
 z_ins_restart
 	; insert device# for boot disk in LOAD command
 	lda disk_info + 4 + 8 ; Device# for story disk (typically 8)
@@ -845,6 +856,7 @@ z_ins_restart
 
 .restart_code_end
 
+} ; !ifndef TARGET_NEO
 }
 
 z_ins_restore
@@ -937,6 +949,9 @@ z_ins_save
 	sta .inputstring,x
 	rts
 
+!ifdef TARGET_NEO {
+!source "save-neo.asm"
+} else {
 disk_error
 	; accumulator contains BASIC error code
 	; most likely errors:
@@ -1992,6 +2007,7 @@ do_save
 	bpl -
 	rts
 
+} ; !ifdef TARGET_NEO
 }	
 
 interval_length = 30 ; Unit: ms
@@ -2144,7 +2160,10 @@ wait_an_interval
 	jmp wait_yx_ms
 }
 
-!ifdef TARGET_MEGA65 {
+!ifdef TARGET_NEO {
+wait_a_jiffy
+	jmp neo_wait_frame
+} else ifdef TARGET_MEGA65 {
 wait_a_jiffy
 -	bit $d011
 	bmi -

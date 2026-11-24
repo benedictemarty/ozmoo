@@ -1,0 +1,3 @@
+STORY=examples/minizork.z3
+KEYS='open mailbox\nsave\n4\nread leaflet\nrestore\n4\ninventory\nquit\ny\n'
+CYCLES=600000000

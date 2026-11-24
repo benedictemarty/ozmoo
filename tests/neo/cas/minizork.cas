@@ -1,0 +1,2 @@
+STORY=examples/minizork.z3
+KEYS='open mailbox\nread leaflet\nquit\ny\n'
