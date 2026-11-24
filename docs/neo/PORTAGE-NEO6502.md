@@ -166,6 +166,38 @@ Pictures » : 41,1 Picture Info (canal, numéro → taille, drapeaux, données, 
 (canal, numéro, X, Y, options : moitié de largeur, transparence, palette MG1, palette EGA) en mode 2. Pas
 encore utilisé par Ozmoo : il faut d'abord que le texte des jeux v6 passe en mode 2.
 
+### Prototype de l'écran v6 en mode 2 (`tests/neo/proto/`)
+
+`essai-mode2.sh FICHIER_IMAGES SORTIE.png` construit `essai-mode2.asm` (programme autonome, hors d'Ozmoo)
+et le lance dans `neo` : mode 2, image 1 du fichier dessinée par 41,2 (palette de l'image dans les entrées
+2 et suivantes), texte de 40 colonnes (police 8 × 8) à droite de l'image et de 80 colonnes (police 4 × 8) en
+dessous, puis 50 fois « défilement de la zone du bas + ligne de 80 caractères ». Il n'utilise que des
+fonctions existantes de Trinity :
+
+| Besoin | Fonction |
+|---|---|
+| police | 32,15 Set Font (format NF1, en RAM du 6502), polices tirées de Clairsys par `mkfonts.py` |
+| papier d'une cellule | 32,9 Erase Rect |
+| texte | 32,4 couleur, 32,5 Move To, 32,16 Draw String (encre seule, papier inchangé) |
+| défilement d'un rectangle | 12,3 de la mémoire vidéo `$80` vers elle-même (octets, pas de 160) |
+| image | 3,4 ouverture puis 41,2 Draw Picture |
+
+Résultat dans l'émulateur (2026-11-24) : aucun appel en erreur ; affichage et défilement corrects (lignes
+dans l'ordre). Les durées relevées par le compteur d'images (5,37, rangées en `$0F10`) valent 0 dans
+l'émulateur, qui ne compte pas le temps passé dans le firmware : **elles ne valent que sur la carte, pas
+encore mesurées**. `GARDE=dossier` recopie `ESSAI.NEO` et `PIC.MG1` pour un essai sur la carte. Constats :
+
+- 80 colonnes de 4 pixels : lisibles mais grossières (« m », « w ») ; 40 colonnes de 8 pixels : nettes.
+- Police réduite : `{ } \ _ | ~` absents (la police d'Ozmoo suit les codes écran de la C64).
+- 16 couleurs pour tout l'écran : une image MG1 charge sa palette dans les entrées 2 à n+1, il ne reste au
+  texte que les entrées 0 et 1 ; deux images de palettes différentes ne peuvent pas être justes ensemble.
+- Le défilement par 12,3 recopie des octets (2 pixels) : les bords de rectangle doivent tomber sur des x
+  pairs, ce qui est vrai pour des cellules de 4 ou 8 pixels. Le comportement de la carte quand la source et
+  la destination se chevauchent n'est pas vérifié.
+
+`make -C tests/neo mode2` (dans la suite) : le prototype avec le fichier libre de `mkpic.py --mg1`, sans
+erreur, image et texte présents sur la capture.
+
 ## Essai sur la carte
 
 `tests/neo/paquet-cle.sh` (ou `make -C tests/neo paquet`) prépare `build-neo/cle/OZMOO/` : six histoires
