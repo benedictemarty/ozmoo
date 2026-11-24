@@ -2107,7 +2107,11 @@ z_init
 	jsr init_sid
 }
 !ifdef Z6_PICTURES {
+!ifdef TARGET_NEO {
+	jsr neo_pic_init ; ouvre le fichier d'images (le firmware les décode à la volée)
+} else {
 	jsr pic_load_all ; preload the pictures into attic RAM, as sound.asm does
+}
 }
 !ifdef Z6_MOUSE {
 	jsr mouse_init ; the pointer sprite, where we have to set it up ourselves

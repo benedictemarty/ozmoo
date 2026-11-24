@@ -1,0 +1,54 @@
+! images.inf — test des images v6 d'Ozmoo sur la Neo6502 (mode 4 de Trinity), avec le fichier d'images
+! libre de tools/neo/mkpic.py --mg1 (images 1 : 64 x 32, 2 : 640 x 20 transparente, 3 : rectangle 100 x 50
+! sans pixels, 4 : 320 x 200, 5 : 200 x 100 avec palette).
+!
+! Écran attendu (en cellules de 4 x 8 pixels d'image) : image 1 en haut à gauche (rangées 0-3, colonnes
+! 0-15), image 5 en dessous (rangées 10-22, colonnes 0-49), le texte à droite (marge de 52 colonnes) ;
+! 33 lignes de texte (dont, à la fin, les tailles rendues par picture_data) font défiler la fenêtre 0 de
+! 9 rangées : l'image 1 sort par le haut, l'image 5 monte aux rangées 1-13 ; puis « XY » est écrit sur
+! l'image 5 (rangée 5, colonnes 10-11) et le curseur attend en colonne 12 : la rangée y perd 3 cellules.
+! Compiler : inform -v6 tests/neo/sources/images.inf tests/neo/histoires/images.z6
+! Auteur : bmarty <bmarty@mailo.com> ; domaine public.
+
+Array info --> 2;
+Global fw = 1;
+Global fh = 1;
+
+[ Main result i k;
+	@get_wind_prop 0 13 -> result;
+	fh = result / 256;
+	fw = result % 256;
+	if (fw == 0) fw = 1;
+	if (fh == 0) fh = 1;
+	@split_window 0;
+	@set_window 0;
+	@erase_window -1;
+	@set_margins 208 0 0;
+	print "Images: cell ", fw, "x", fh, "^";
+	@draw_picture 1 1 1;
+	@draw_picture 5 81 1;
+	for (i = 1: i <= 28: i++) print "line ", i, "^";
+	@picture_data 0 info ?p0;
+.p0;
+	print "count ", info-->0, " release ", info-->1, "^";
+	@picture_data 1 info ?p1ok;
+	print "ERROR: no picture 1^"; jump p1done;
+.p1ok;
+	print "pic 1: ", info-->1, "x", info-->0, "^";
+.p1done;
+	@picture_data 3 info ?p3ok;
+	print "ERROR: no rect 3^"; jump p3done;
+.p3ok;
+	print "rect 3: ", info-->1, "x", info-->0, "^";
+.p3done;
+	@picture_data 9 info ?p9bad;
+	print "pic 9 absent^"; jump p9done;
+.p9bad;
+	print "ERROR: pic 9 reported^";
+.p9done;
+	@set_margins 0 0 0;
+	@set_cursor 41 41;
+	print "XY";
+	@read_char 1 -> k;
+	@quit;
+];

@@ -209,7 +209,7 @@ neo_reset
 	jmp ($0000)
 
 !ifdef NEO_TEST {
-; Copie la grille du mode 3 ($80:0000, 2 000 codes) en RAM, pour que le test la lise
+; Copie les 2 000 glyphes de la grille (mode 3 ou 4, neo_grid_page) en RAM, pour que le test la lise
 ; dans memory.dump (12,2 Simple Blit Copy).
 NEO_TEST_DUMP = $f000 ; dans la mémoire virtuelle (on ne revient pas), loin du code qui copie
 neo_test_dump_screen
@@ -218,7 +218,32 @@ neo_test_dump_screen
 	sta NEO_TEST_DUMP + 2000
 	lda neo_test_reads + 1
 	sta NEO_TEST_DUMP + 2001
-	lda #$80
+	lda neo_mode4 ; puis le mode d'écran : 1 = mode 4, 0 = mode 3
+	sta NEO_TEST_DUMP + 2002
+!ifdef Z6_PICTURES {
+	lda neo_pic_last_err ; images : dernière erreur de 41,2, nombre de dessins, cellules graphiques par rangée
+	sta NEO_TEST_DUMP + 2003
+	lda neo_pic_draws
+	sta NEO_TEST_DUMP + 2004
+	ldx #24
+-	lda neo_row_gfx,x
+	sta NEO_TEST_DUMP + 2005,x
+	dex
+	bpl -
+	ldx #127
+-	lda neo_pic_log,x ; journal des dessins en $E700
+	sta NEO_TEST_DUMP - 2304,x
+	dex
+	bpl -
+	ldx #127
+-	lda neo_tl_log,x ; journal des conversions en texte en $E680
+	sta NEO_TEST_DUMP - 2432,x
+	dex
+	bpl -
+	lda neo_tl_count
+	sta NEO_TEST_DUMP + 2030
+}
+	lda neo_grid_page
 	sta neo_api_param
 	lda #0
 	sta neo_api_param + 1
@@ -227,6 +252,26 @@ neo_test_dump_screen
 	lda #<NEO_TEST_DUMP
 	sta neo_api_param + 4
 	lda #>NEO_TEST_DUMP
+	sta neo_api_param + 5
+	lda #<2000
+	sta neo_api_param + 6
+	lda #>2000
+	sta neo_api_param + 7
+	lda #2
+	ldx #12
+	jsr neo_api_call
+	; puis les 2 000 attributs en NEO_TEST_DUMP - 2048 ($E800 : sous les glyphes, loin de l'API en $FF00)
+	lda neo_grid_page
+	sta neo_api_param
+	lda neo_grid_attrs
+	sta neo_api_param + 1
+	lda neo_grid_attrs + 1
+	sta neo_api_param + 2
+	lda #0
+	sta neo_api_param + 3
+	lda #<(NEO_TEST_DUMP - 2048)
+	sta neo_api_param + 4
+	lda #>(NEO_TEST_DUMP - 2048)
 	sta neo_api_param + 5
 	lda #<2000
 	sta neo_api_param + 6
@@ -252,6 +297,70 @@ neo_init
 	ldx #1
 	jsr neo_api_call
 }
+!ifdef Z6 {
+	; Jeux v6 : mode 4 (graphisme du mode 0 et grille 80 x 25 du mode 3, cellule par cellule),
+	; toutes les cellules en texte ; mode 3 si le firmware n'a pas le mode 4 (avant 0.16.115).
+	lda #4
+	sta neo_api_param
+	lda #9
+	ldx #5
+	jsr neo_api_call ; 5,9 : mode 4
+	bne .neo_init_mode3
+	lda #NEO_T4_PAGE
+	sta neo_grid_page
+	lda #<NEO_T4_ATTRS
+	sta neo_grid_attrs
+	lda #>NEO_T4_ATTRS
+	sta neo_grid_attrs + 1
+	lda #1
+	sta neo_mode4
+	sta neo_api_param + 4
+	lda #0
+	sta neo_api_param
+	sta neo_api_param + 1
+	lda #SCREEN_WIDTH - 1
+	sta neo_api_param + 2
+	lda #SCREEN_HEIGHT - 1
+	sta neo_api_param + 3
+	lda #44
+	ldx #5
+	jsr neo_api_call ; 5,44 : toutes les cellules en texte
+	; Entrées 0-15 de la palette ramenées aux niveaux que le firmware montre pour le texte (2 bits par
+	; composante : 00/55/AA/FF), pour qu'un pixel peint au fond d'une fenêtre ait la couleur exacte du
+	; papier des cellules de texte voisines.
+	ldx #15
+.neo_init_pal
+	stx neo_save_x
+	stx neo_api_param
+	lda #38
+	ldx #5
+	jsr neo_api_call ; 5,38 : Get Palette
+	ldy #3
+-	lda neo_api_param,y
+	lsr
+	lsr
+	lsr
+	lsr
+	lsr
+	lsr
+	tax
+	lda .neo_level85,x
+	sta neo_api_param,y
+	dey
+	bne -
+	lda neo_save_x
+	sta neo_api_param
+	lda #32
+	ldx #5
+	jsr neo_api_call ; 5,32 : Set Palette
+	ldx neo_save_x
+	dex
+	bpl .neo_init_pal
+	jmp .neo_init_mode_ok
+.neo_level85
+	!byte 0, 85, 170, 255
+.neo_init_mode3
+}
 	lda #3
 	sta neo_api_param
 	lda #9
@@ -262,6 +371,7 @@ neo_init
 	ldy #>.msg_no_mode3
 	jmp neo_fatal_message
 +
+.neo_init_mode_ok
 	lda #0
 	sta neo_api_param
 	lda #19
@@ -458,6 +568,17 @@ neo_print_petscii
 neo_print_cp437
 	cpy #SCREEN_WIDTH
 	bcs .pc_done
+!ifdef Z6_PICTURES {
+	pha ; la cellule repasse en texte si une image l'occupait (A, X = vidéo inverse et Y conservés)
+	stx neo_tmp_rev
+	sty neo_tmp_y
+	ldx neo_tmp_y
+	lda zp_screenline + 1
+	jsr neo_text_layer
+	ldx neo_tmp_rev
+	ldy neo_tmp_y
+	pla
+}
 	sta neo_text_buffer + 1
 	lda #1
 	sta neo_text_buffer
@@ -515,6 +636,16 @@ neo_print_buffer_line
 	sta neo_api_param + 3
 	lda #>neo_text_buffer
 	sta neo_api_param + 4
+!ifdef Z6_PICTURES {
+	lda neo_tmp_y ; les cellules du tronçon repassent en texte (paramètres conservés)
+	clc
+	adc neo_text_buffer
+	tay
+	dey
+	ldx neo_tmp_y
+	lda zp_screenline + 1
+	jsr neo_text_layer
+}
 	lda #13
 	ldx #5
 	jsr neo_api_call ; 5,13 : Text Write (coupé en fin de ligne par le firmware)
@@ -527,6 +658,14 @@ neo_print_buffer_line
 neo_erase_to_eol
 	cpy #SCREEN_WIDTH
 	bcs +
+!ifdef Z6_PICTURES {
+	sty neo_tmp_y
+	ldx neo_tmp_y
+	ldy #SCREEN_WIDTH - 1
+	lda zp_screenline + 1
+	jsr neo_text_layer
+	ldy neo_tmp_y
+}
 	sty neo_api_param
 	lda zp_screenline + 1
 	sta neo_api_param + 1
@@ -553,8 +692,15 @@ neo_scroll_up
 	ldx #5
 	jmp neo_api_call ; 5,14 : Text Scroll
 
-; Grille du mode 3 : glyphes en $80:0000, attributs en $80:1388, 80 octets par ligne
+; Grille de texte, 80 octets par ligne : glyphes au début de la page neo_grid_page, attributs à
+; neo_grid_attrs. Mode 3 : page $80, attributs en $1388. Mode 4 (jeux v6, Trinity 0.16.115) : page $91,
+; attributs en $07D0 (2 000). Lue par 12,2.
 NEO_T80_ATTRS = $1388
+NEO_T4_PAGE = $91
+NEO_T4_ATTRS = 2000
+neo_grid_page	!byte $80
+neo_mode4		!byte 0 ; 1 : mode 4 (jeux v6)
+neo_grid_attrs	!word NEO_T80_ATTRS
 neo_row80_lo	!for .r, 0, 24 { !byte <(.r * SCREEN_WIDTH) }
 neo_row80_hi	!for .r, 0, 24 { !byte >(.r * SCREEN_WIDTH) }
 
@@ -599,7 +745,7 @@ neo_row_attrs	!fill SCREEN_WIDTH, 0
 	txa
 	adc neo_api_param + 2
 	sta neo_api_param + 2
-	lda #$80
+	lda neo_grid_page
 	sta neo_api_param
 	lda #0
 	sta neo_api_param + 3
@@ -626,8 +772,8 @@ neo_copy_cells
 	lda #>neo_row_attrs
 	sta neo_tmp_y
 	ldy #<neo_row_attrs
-	lda #<NEO_T80_ATTRS
-	ldx #>NEO_T80_ATTRS
+	lda neo_grid_attrs
+	ldx neo_grid_attrs + 1
 	jsr .neo_cc_fetch
 	lda #0
 	sta neo_cc_i
@@ -674,6 +820,20 @@ neo_blank_cells
 	stx neo_tmp_ink
 	cpy neo_tmp_ink
 	bcs +
+!ifdef Z6_PICTURES {
+	sta .nbc_a ; les cellules effacées repassent en texte
+	sty .nbc_y
+	stx .nbc_x
+	dex
+	txa
+	tay
+	ldx .nbc_y
+	lda .nbc_a
+	jsr neo_text_layer
+	lda .nbc_a
+	ldy .nbc_y
+	ldx .nbc_x
+}
 	sta neo_api_param + 1
 	sta neo_api_param + 3
 	sty neo_api_param
@@ -686,6 +846,47 @@ neo_blank_cells
 	ldx #5
 	jmp neo_api_call ; 5,15 : Text Clear
 +	rts
+!ifdef Z6_PICTURES {
+.nbc_a	!byte 0
+.nbc_y	!byte 0
+.nbc_x	!byte 0
+}
+
+; Fait défiler le rectangle de cellules neo_gs_left..neo_gs_right (exclue), lignes neo_gs_top à
+; neo_gs_bottom, de Y lignes (1 vers le haut, $ff vers le bas) par 5,45 (mode 4), les cellules libérées
+; prenant le fond de la fenêtre ; les images du rectangle suivent (neo_gfx_scroll).
+neo_scroll_rect
+	sty neo_sr_dir
+	ldx s_colour_swap
+	jsr neo_make_attr
+	sta neo_api_param + 5
+	lda neo_sr_dir
+	sta neo_api_param + 4
+	lda neo_gs_left
+	sta neo_api_param
+	lda neo_gs_top
+	sta neo_api_param + 1
+	ldx neo_gs_right
+	dex
+	stx neo_api_param + 2
+	lda neo_gs_bottom
+	sta neo_api_param + 3
+	lda #45
+	ldx #5
+	jsr neo_api_call ; 5,45 : Text Scroll Rect
+!ifdef Z6_PICTURES {
+	ldy neo_sr_dir
+	jmp neo_gfx_scroll
+} else {
+	rts
+}
+neo_sr_dir	!byte 0
+!ifndef Z6_PICTURES {
+neo_gs_left		!byte 0
+neo_gs_right	!byte 0
+neo_gs_top		!byte 0
+neo_gs_bottom	!byte 0
+}
 
 ; Fait défiler les lignes A (haut) à X (bas, incluse) pleine largeur de Y lignes
 ; (Y = 1 vers le haut, $ff vers le bas), les lignes libérées prenant le fond de la
@@ -743,10 +944,10 @@ neo_more_save
 	jsr .neo_more_fetch
 	lda neo_api_param + 1
 	clc
-	adc #<NEO_T80_ATTRS
+	adc neo_grid_attrs
 	sta neo_api_param + 1
 	lda neo_api_param + 2
-	adc #>NEO_T80_ATTRS
+	adc neo_grid_attrs + 1
 	sta neo_api_param + 2
 	lda #<neo_more_attr
 	ldx #>neo_more_attr
@@ -756,7 +957,7 @@ neo_more_save
 .neo_more_fetch ; 12,2 d'un octet de $80:(param 1,2) vers A/X
 	sta neo_api_param + 4
 	stx neo_api_param + 5
-	lda #$80
+	lda neo_grid_page
 	sta neo_api_param
 	lda #0
 	sta neo_api_param + 3

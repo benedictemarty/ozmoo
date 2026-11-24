@@ -17,6 +17,14 @@ inform -v8 test/czech/czech.inf tests/neo/histoires/czech8.z8
 inform -v5 tests/neo/sources/chrono.inf tests/neo/histoires/chrono.z5
 inform -v5 tests/neo/sources/accents.inf tests/neo/histoires/accents.z5
 inform -v5 tests/neo/sources/annuler.inf tests/neo/histoires/annuler.z5
+inform -v6 tests/neo/sources/images.inf tests/neo/histoires/images.z6
+```
+
+`essai.mg1` est le fichier d'images libre de `tools/neo/mkpic.py` (bmarty, domaine public), au format IBM
+VGA, pour le cas `images-libres` :
+
+```sh
+python3 tools/neo/mkpic.py tests/neo/histoires/essai.mg1 --mg1
 ```
 
 `testz6.z6` et `testz6scroll.z6` sont compilés depuis les sources de l'amont (`testz6.inf`,

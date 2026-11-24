@@ -5,3 +5,4 @@ STORY=tests/neo/histoires/testz6scroll.z6
 KEYS='x'
 KEYSTART=150000000
 CYCLES=300000000
+MODE=4

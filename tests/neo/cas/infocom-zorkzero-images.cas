@@ -1,0 +1,11 @@
+# Zork Zero (Infocom, v6, release 393, version PC) avec ses images EGA (ZORK0.EG1, hors dépôt, dessinées à
+# moitié de largeur) : colonnes, rose des vents, ligne d'état et lettrines ; les rangées des lettrines ont
+# 5 suites de cellules (colonne, marge, lettrine, texte, colonne) : la marge vide passe en graphisme.
+STORY=../infocom-masterpieces/ibm/zorkzero/ZORK0.ZIP
+OPTS="-pics ../infocom-masterpieces/ibm/zorkzero/ZORK0.EG1"
+SI_PRESENT=1
+KEYS='\e'
+KEYSTART=200000000
+CYCLES=600000000
+MODE=4
+IMAGES='^erreur 00 dessins 14 rangees 80 [0-9]+ [0-9]+ 80 80 33 33 33 21 21 21 28 28 28 '

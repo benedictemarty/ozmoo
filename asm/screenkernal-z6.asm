@@ -2182,6 +2182,18 @@ s_scrolled_lines !byte 0
 	lda .win_top
 	ldx .win_bottom
 	jmp neo_scroll_rows
+
+.sw_neo_rect
+	; mode 4 : défilement du rectangle de la fenêtre (5,45) : Y = 1 (haut) ou $ff (bas)
+	lda .win_left
+	sta neo_gs_left
+	lda .win_right_excl
+	sta neo_gs_right
+	lda .win_top
+	sta neo_gs_top
+	lda .win_bottom
+	sta neo_gs_bottom
+	jmp neo_scroll_rect
 }
 
 s_scroll_window
@@ -2243,8 +2255,19 @@ s_scroll_window
 .sw_up_one
 	; every line takes the contents of the one below it; the last goes blank
 	jsr .sw_has_rows
+!ifndef TARGET_NEO {
 	bcc .sw_no_rows
+}
 !ifdef TARGET_NEO {
+	bcs +
+	jmp .sw_no_rows
++	lda neo_mode4
+	beq .sw_up_m3
+	ldy #1 ; mode 4 : défilement d'un rectangle par le firmware (5,45)
+	jsr .sw_neo_rect
+	lda .win_bottom
+	jmp .sw_point_at_row
+.sw_up_m3
 	jsr .sw_neo_full_width
 	bcc +
 	ldy #1
@@ -2271,8 +2294,19 @@ s_scroll_window
 .sw_down_one
 	; every line takes the contents of the one above it; the first goes blank
 	jsr .sw_has_rows
+!ifndef TARGET_NEO {
 	bcc .sw_no_rows
+}
 !ifdef TARGET_NEO {
+	bcs +
+	jmp .sw_no_rows
++	lda neo_mode4
+	beq .sw_down_m3
+	ldy #$ff
+	jsr .sw_neo_rect
+	lda .win_top
+	jmp .sw_point_at_row
+.sw_down_m3
 	jsr .sw_neo_full_width
 	bcc +
 	ldy #$ff

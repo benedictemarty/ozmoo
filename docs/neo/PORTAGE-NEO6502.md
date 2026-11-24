@@ -24,12 +24,22 @@ produit le dossier `neo_minizork/` :
 Copier les deux fichiers dans le même dossier de la clé USB, puis lancer `MINIZORK` depuis NeoDOS.
 Les parties sauvées sont écrites à côté : `MINIZORK.SV0` à `MINIZORK.SV9`.
 
+Jeux v6 avec images (firmware Trinity 0.16.115 ou plus) : donner le fichier d'images IBM d'origine,
+`.MG1` (VGA, palette par image) ou `.EG1` (EGA, 640 de large, dessiné à moitié de largeur) :
+
+```sh
+ruby make.rb -t:neo -pics JOURNEY.MG1 JOURNEY.ZIP
+```
+
+Le fichier est copié à côté de l'histoire sous le nom `<JEU>.MG1` / `<JEU>.EG1` et lu pendant la partie
+(les images ne sont ni converties ni mises dans le `.NEO`).
+
 Dans l'émulateur du firmware : `ruby make.rb -t:neo -s examples/minizork.z3` (exécutable `neo`, à mettre
 dans le `PATH` ou à déclarer dans `.ozmoorc` : `NEO = /chemin/vers/Neo6502Trinity/bin/neo`).
 
-## État (version 0.5.0, sprint 5)
+## État (version 0.6.0, sprint 6)
 
-Vérifié dans l'émulateur `neo` de Trinity (0.16.112), par `make -C tests/neo` :
+Vérifié dans l'émulateur `neo` de Trinity (0.16.115), par `make -C tests/neo` :
 
 | Cas | Histoire | Résultat |
 |---|---|---|
@@ -47,6 +57,8 @@ Vérifié dans l'émulateur `neo` de Trinity (0.16.112), par `make -C tests/neo`
 | `saisie-chronometree` | chrono.z5 (`tests/neo/sources/`) | `read_char` et `aread` avec délai : routine appelée 10 fois par seconde |
 | `accents` | accents.z5 (`tests/neo/sources/`) | lettres accentuées à l'écran, symboles `{ } ~ \` \| \\ _ ^`, composition `^e` → ê |
 | `clavier-azerty` | accents.z5 avec `-neokbd:fr` | touches é è ç à ù du clavier AZERTY, `^` puis `e` |
+| `images-libres` | images.z6 (`tests/neo/sources/`) + `histoires/essai.mg1` (mkpic) | taille des images, dessin en mode 4, défilement de la fenêtre avec ses images, texte écrit sur une image |
+| `infocom-journey-images`, `infocom-zorkzero-images` | Journey PC r83 + `JOURNEY.MG1`, Zork Zero PC r393 + `ZORK0.EG1` (hors dépôt, sautés s'ils manquent) | écran titre et introduction de Journey ; colonnes, rose des vents, ligne d'état et lettrines de Zork Zero |
 
 Et `tests/neo/non-regression.sh` : l'interpréteur des cibles C64, C128, Plus/4, MEGA65 et X16 (minizork.z3,
 czech.z5, praxix.z5, testz6.z6) est identique, octet pour octet, à celui de l'amont `5b990fb`.
@@ -54,10 +66,12 @@ czech.z5, praxix.z5, testz6.z6) est identique, octet pour octet, à celui de l'a
 Fonctions :
 
 - Versions Z1 à Z5, Z7 et Z8 en texte (Z3, Z4, Z5 et Z8 testées).
-- Version 6 (jeux à fenêtres : Journey, Arthur, Zork Zero, Shogun) en mode texte 3, **sans images** : à la
-  place d'une image, Ozmoo écrit une note « pic:N » (comme sur C64) ; les lettrines de Zork Zero manquent.
-  Les fenêtres Z6 sont des rectangles : une fenêtre pleine largeur défile par 5,14 ; une fenêtre partielle
-  est recopiée ligne par ligne (grille relue par 12,2 en `$80:0000` / `$80:1388`, réécrite par 5,13).
+- Version 6 (jeux à fenêtres : Journey, Arthur, Zork Zero, Shogun) en **mode 4** de Trinity (0.16.115) :
+  texte 80 x 25 du mode 3 posé sur le graphisme 320 x 240 x 256 couleurs, une cellule montrant soit son
+  texte soit le graphisme (5,44). Les fenêtres Z6 sont des rectangles qui défilent par 5,45. Avec `-pics`,
+  les images sont dessinées par le firmware (voir « Images des jeux Z6 ») ; sans `-pics`, rien n'est
+  dessiné à leur place. Sur un firmware sans mode 4, retour au mode 3, sans images (une fenêtre partielle
+  y est recopiée ligne par ligne : grille relue par 12,2, réécrite par 5,13).
   L'invite `[MORE]` clignote dans le coin bas droit de la fenêtre et rend ensuite la cellule telle qu'elle était.
 - Mémoire virtuelle par blocs de 512 octets lus dans le fichier de l'histoire (3,6 Seek + 3,8 Read), de
   `story_start` à `$FBFF` (pour Adventure : 28 blocs de mémoire dynamique et 68 de mémoire virtuelle).
@@ -139,7 +153,7 @@ Essayés dans `neo` (0.4.0) : Zork I, Trinity (37,7 Ko de mémoire dynamique, 13
 commandes), Sherlock (cas de test) ; A Mind Forever Voyaging, Beyond Zork, Border Zone (horloge en temps
 réel) démarrent et répondent (captures, pas de cas).
 
-## Images des jeux Z6 (en préparation)
+## Images des jeux Z6
 
 Choix de bmarty (2026-11-24) : les images sont décodées par le firmware Trinity, à la volée, depuis les
 fichiers d'images d'origine posés sur la clé. Format retenu : celui des versions IBM (`.EG1` EGA, `.MG1`
@@ -161,10 +175,42 @@ drapeau 8), seules 23 images sur 134 se décodent avec cet algorithme (CGA non u
 Zork Zero IBM r393 : 503 entrées, 396 images, 640 × 200 en EGA (moitié de la largeur sur l'écran de
 320 × 240 du mode 2), 16 couleurs fixes de l'EGA ; mémoire dynamique 29,2 Ko.
 
-Firmware : Trinity 0.16.114 (commit `f98b7b73`, pas encore publié) apporte le groupe 41 « Infocom
-Pictures » : 41,1 Picture Info (canal, numéro → taille, drapeaux, données, palette) et 41,2 Draw Picture
-(canal, numéro, X, Y, options : moitié de largeur, transparence, palette MG1, palette EGA) en mode 2. Pas
-encore utilisé par Ozmoo : il faut d'abord que le texte des jeux v6 passe en mode 2.
+Firmware : Trinity 0.16.114 apporte le groupe 41 « Infocom Pictures » (41,1 Picture Info, 41,2 Draw
+Picture) ; 0.16.115 le mode 4 mixte (5,44 Set Cell Layer, 5,45 Text Scroll Rect, grille en page `$91`) et
+l'option « couleur de base » de 41,2.
+
+### Moteur d'images d'Ozmoo (`asm/pictures-neo.asm`, 0.6.0)
+
+- **Unités** : Ozmoo compte en pixels d'image 320 x 200 (`Z6_PIXEL_UNITS`, comme l'amont) ; une cellule
+  de texte fait 4 x 8 pixels du graphisme du mode 4, à la même échelle : une image se dessine à sa
+  position telle quelle (41,2), sans conversion.
+- **Taille** (`picture_data`) : demandée au firmware (41,1) à chaque appel, rien n'est gardé en mémoire ;
+  une entrée sans pixels (rectangle d'Arthur) a une taille et ne dessine rien. L'image 0 rend le nombre
+  d'images et la version lus dans l'en-tête du fichier.
+- **Carte des cellules** : Ozmoo tient un bit par cellule (texte ou graphisme). Dessiner une image passe
+  ses cellules en graphisme, après avoir peint au fond de la fenêtre (32,9) les pixels des cellules qui
+  étaient du texte ; écrire ou effacer du texte (5,13, 5,15) repasse les cellules touchées en texte ; le
+  défilement d'une fenêtre (5,45) fait aussi défiler ses pixels (12,3) et sa carte (vers le haut ; vers
+  le bas, les images du rectangle repassent en texte).
+- **4 suites par rangée** (limite du firmware) : quand une rangée en demande plus, une suite de texte
+  faite d'espaces entre deux suites graphiques passe en graphisme (pixels peints à son papier : rendu
+  identique), sinon la plus courte suite graphique repasse en texte. Zork Zero en a besoin : colonne,
+  marge vide, lettrine, texte, colonne font 5 suites.
+- **Couleurs** : les entrées 0-15 servent au texte ; au démarrage du mode 4 elles sont ramenées aux
+  niveaux que le firmware montre pour le texte (00/55/AA/FF) pour que les pixels peints au fond aient
+  exactement le papier du texte. Images VGA : une tranche de 16 entrées par image à partir de 16 (15
+  tranches, réutilisées à tour de rôle, la même image gardant sa tranche) ; une image sans palette prend
+  celle de la dernière image dessinée (la palette EGA si aucune). Images EGA : palette EGA en 16-31.
+- **Numéro d'interpréteur** : 6 (IBM PC) avec `-pics`, la machine des fichiers d'images ; les jeux
+  disposent alors leur écran comme sur PC.
+- **Pas de superposition** : un caractère écrit sur une image remplace la cellule (4 x 8 pixels) ; le
+  fond transparent des jeux (couleur −1) n'est pas rendu, les espaces cachent l'image.
+- **Mémoire** : le moteur prend environ 2,5 Ko (Zork Zero : 22 blocs de mémoire virtuelle au lieu de 27).
+
+Les versions de test (`-neotest`) relèvent l'état des images : dernière erreur de 41,2, nombre de dessins
+et cellules graphiques par rangée (`SORTIE.images`, attendu `IMAGES=` d'un cas), journal des 16 derniers
+dessins (`.dessins`) et des 16 dernières conversions en texte (`.conversions`), attributs de la grille
+(`.attributs`).
 
 ### Prototype de l'écran v6 en mode 2 (`tests/neo/proto/`)
 
@@ -230,6 +276,6 @@ pour 12 commandes ; minizork sans préchargement, 55 blocs ; les autres histoire
 ## Limites connues
 
 - Pas de touches de fonction ; pas de glyphe pour les majuscules accentuées absentes du CP437 (À, È, Ê...).
-- Pas d'images Z6, pas de son, pas d'historique de défilement, pas de mode sombre ; un seul niveau d'annulation.
+- Images Z6 sans superposition du texte (voir plus haut) ; images Mac (Arthur) non lisibles ; pas de son, pas d'historique de défilement, pas de mode sombre ; un seul niveau d'annulation.
 - `neo_delay_1ms` est une boucle approximative (≈ 6 000 cycles, en supposant 6,25 MHz) : elle ne sert
   qu'aux pauses de l'affichage.

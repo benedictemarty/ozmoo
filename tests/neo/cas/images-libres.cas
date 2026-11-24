@@ -1,0 +1,10 @@
+# images.z6 (tests/neo/sources/images.inf) avec le fichier d'images libre histoires/essai.mg1
+# (tools/neo/mkpic.py --mg1) : taille des images (41,1), dessin (41,2) en mode 4, cellules graphiques,
+# défilement de la fenêtre avec ses images, texte écrit sur une image.
+STORY=tests/neo/histoires/images.z6
+OPTS="-pics tests/neo/histoires/essai.mg1"
+KEYS='x'
+KEYSTART=200000000
+CYCLES=300000000
+MODE=4
+IMAGES='^erreur 00 dessins 2 rangees 0 50 50 50 50 47 50 50 50 50 50 50 50 50 0 0 0 0 0 0 0 0 0 0 0$'

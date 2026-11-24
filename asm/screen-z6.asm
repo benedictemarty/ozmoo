@@ -159,12 +159,16 @@ font3_to_petscii_end
 ;  48 down+left, 49 up+left, 57 solid left block (Journey's selected-command bar).
 
 !ifdef Z6_PICTURES {
+!ifdef TARGET_NEO {
+!source "pictures-neo.asm" ; images décodées par le firmware Trinity, depuis le fichier IBM
+} else {
 !source "../temp/pictures.asm"
 
 !ifdef TARGET_X16 {
 !source "pictures-x16.asm"
 } else {
 !source "pictures-mega65.asm"
+}
 }
 }
 
@@ -300,6 +304,17 @@ z_ins_draw_picture
 	jsr newline
 }
 !ifdef Z6_PICTURES {
+!ifdef TARGET_NEO {
+	; Neo : le firmware dessine l'image ; une entrée sans pixels (rectangle) ou absente ne dessine rien
+	lda z_operand_value_high_arr
+	ldx z_operand_value_low_arr
+	jsr .pic_find
+	bcs +
+	rts
++	jsr .pic_place_cursor
+	jsr neo_pic_draw
+	jmp restore_cursor
+} else {
 	lda z_operand_value_high_arr
 	ldx z_operand_value_low_arr
 	jsr .pic_find
@@ -313,6 +328,7 @@ z_ins_draw_picture
 	bcc +
 	rts
 +
+}
 }
 	jsr .pic_place_cursor
 	lda #>.pic_prefix
@@ -349,6 +365,18 @@ z_ins_picture_data
 	; picture 0: the number of pictures (a word), then the file's release number
 	jsr .pd_set_array
 !ifdef Z6_PICTURES {
+!ifdef TARGET_NEO {
+	; Neo : nombre d'images et version, lus dans l'en-tête du fichier d'images
+	lda neo_pic_hdr + 5
+	jsr write_next_byte
+	lda neo_pic_hdr + 4
+	jsr write_next_byte
+	lda neo_pic_hdr + 15
+	jsr write_next_byte
+	lda neo_pic_hdr + 14
+	jsr write_next_byte
+	jmp make_branch_false
+}
 	lda #>picture_count
 } else {
 	lda #0
@@ -366,6 +394,22 @@ z_ins_picture_data
 	jmp make_branch_false ; picture 0 never branches
 .pd_picture
 !ifdef Z6_PICTURES {
+!ifdef TARGET_NEO {
+	; Neo : taille donnée par le firmware (41,1), en pixels d'image, image ou simple rectangle
+	lda z_operand_value_high_arr
+	ldx z_operand_value_low_arr
+	jsr .pic_find
+	lda .np_exists
+	bne +
+	jmp make_branch_false
++	lda .np_w
+	sta .pd_w
+	lda .np_w + 1
+	sta .pd_w + 1
+	lda .np_h
+	sta .pd_h
+	jmp .pd_report_px
+} else {
 	lda z_operand_value_high_arr
 	ldx z_operand_value_low_arr
 	jsr .pic_find
@@ -423,6 +467,7 @@ z_ins_picture_data
 	lda .pic_w ; and the width word 1
 	jsr write_next_byte
 	jmp make_branch_true
+} ; !ifdef TARGET_NEO / else
 !ifdef Z6_PIXEL_UNITS {
 .pd_report_px
 	jsr .pd_set_array
@@ -436,6 +481,7 @@ z_ins_picture_data
 	jsr write_next_byte
 	jmp make_branch_true
 
+!ifndef TARGET_NEO {
 .pd_px_lookup
 	; a,x = the low and high byte of a table's address -> a = its entry for the
 	; picture in .pic_index. Both engines index their tables this way.
@@ -443,6 +489,7 @@ z_ins_picture_data
 	ldy #0
 	lda (.pi_ptr),y
 	rts
+}
 
 .pd_w !byte 0,0
 .pd_h !byte 0
@@ -452,6 +499,7 @@ z_ins_picture_data
 	jmp make_branch_false
 
 !ifdef Z6_PICTURES {
+!ifndef TARGET_NEO {
 .rect_find
 	; Picture number in x (low byte) and z_operand_value_high_arr (high). Return
 	; its index in y with carry set, or carry clear if it is not a rect.
@@ -474,6 +522,7 @@ z_ins_picture_data
 	rts
 }
 }
+}
 
 .pd_set_array
 	; Point the write cursor at the array in operand 1.
@@ -492,6 +541,18 @@ z_ins_erase_picture
 	jsr newline
 }
 !ifdef Z6_PICTURES {
+!ifdef TARGET_NEO {
+	; Neo : efface la place de l'image ou du rectangle (texte au fond de la fenêtre)
+	lda z_operand_value_high_arr
+	ldx z_operand_value_low_arr
+	jsr .pic_find
+	lda .np_exists
+	bne +
+	rts
++	jsr .pic_place_cursor
+	jsr neo_pic_erase
+	jmp restore_cursor
+} else {
 	lda z_operand_value_high_arr
 	ldx z_operand_value_low_arr
 	jsr .pic_find
@@ -500,6 +561,7 @@ z_ins_erase_picture
 	jsr .pic_erase
 	jmp restore_cursor
 +
+}
 }
 	jsr .pic_place_cursor
 	lda z_operand_value_high_arr

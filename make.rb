@@ -2868,6 +2868,7 @@ def build_neo(storyname, config_data, vmem_data, vmem_contents, preload_max_vmem
 		[$config_load_address, config.pack("C*")]
 	])
 	File.binwrite(File.join(outdir, $neo_story_name), $story_file_data)
+	FileUtils.cp($neo_picture_file, File.join(outdir, $neo_picture_name)) if $neo_picture_file
 	puts "Interpreter: $#{$start_address.to_s(16)}-$#{($start_address + interpreter.length - 1).to_s(16)}, story start $#{$storystart.to_s(16)}." if $verbose
 	puts "Neo6502: #{$dynmem_blocks} dynmem blocks and #{preload_blocks} preloaded vmem blocks of #{$VMEM_BLOCKSIZE} bytes in the .NEO."
 	$bootdiskname = outdir
@@ -2947,7 +2948,8 @@ def print_usage
 	puts "        only. On the MEGA65 the pictures are compressed onto the boot disk,"
 	puts "        or onto separate picture disks if they do not fit there, and are"
 	puts "        loaded into attic RAM at startup; on the X16 they are put in the"
-	puts "        game directory and loaded from SD as they are drawn."
+	puts "        game directory and loaded from SD as they are drawn. On neo, give the"
+	puts "        IBM picture file (.MG1 or .EG1): the Trinity firmware draws from it."
 	puts "  -cs: Use the specified cursor shape.  ([b]lock (default), [u]nderscore or [l]ine)"
 	puts "  -dt: Set the disk title to the specified text."
 	puts "  -rd: Reserve the entire directory track, typically for directory art."
@@ -3915,7 +3917,32 @@ if fcm_mode == 1
 	end
 end
 
-if picture_dir
+if picture_dir and $target == 'neo'
+	# neo : les images sont decodees par le firmware Trinity (groupe 41, 0.16.115 ou plus) depuis le
+	# fichier d'images IBM d'origine (.MG1 VGA, .EG1 EGA), copie a cote de l'histoire sous le nom
+	# <JEU>.<ext> et ouvert pendant la partie ; l'ecran des jeux v6 est en mode 4 (texte 80 colonnes et
+	# graphisme 320 x 240). Les images EGA (640 de large) sont dessinees a moitie de largeur.
+	if $zcode_version != 6
+		puts "ERROR: -pics is only for version 6 games."
+		exit 1
+	end
+	unless File.file?(picture_dir)
+		puts "ERROR: -pics: on neo, give the IBM picture file (.MG1 or .EG1): #{picture_dir}"
+		exit 1
+	end
+	head = File.binread(picture_dir, 16)
+	pic_ext = File.extname(picture_dir).upcase
+	unless head and head.length == 16 and [12, 14].include?(head.getbyte(8)) and pic_ext =~ /^\.(MG|EG)[0-9]$/
+		puts "ERROR: -pics: not an IBM picture file (.MG1 or .EG1 expected): #{picture_dir}"
+		exit 1
+	end
+	$neo_picture_file = picture_dir
+	$neo_picture_ext = pic_ext
+	$GENERALFLAGS.push('Z6_PICTURES') unless $GENERALFLAGS.include?('Z6_PICTURES')
+	$GENERALFLAGS.push('NEO_PIC_EGA') if pic_ext.start_with?('.EG') and not $GENERALFLAGS.include?('NEO_PIC_EGA')
+	# Le jeu dispose son ecran comme sur IBM, la machine des fichiers d'images.
+	$interpreter_number = 6 if $interpreter_number == nil
+elsif picture_dir
 	unless $target =~ /x16|mega65/
 		puts "ERROR: -pics can only be used for MEGA65 and X16"
 		exit 1
@@ -4206,6 +4233,10 @@ if $target == 'neo'
 		"neo_program_filename_len = #{$neo_program_name.length}\n" +
 		"neo_save_filename\n\t!byte #{$neo_base.length + 4}\n\t!text \"#{$neo_base}.SV\"\n" +
 		"neo_save_filename_digit\n\t!text \"0\"\n"
+	if $neo_picture_file
+		$neo_picture_name = $neo_base + $neo_picture_ext
+		neo_files += "neo_pic_filename\n\t!byte #{$neo_picture_name.length}\n\t!text \"#{$neo_picture_name}\"\n"
+	end
 	File.write(File.join($TEMPDIR, 'neo-files.asm'), neo_files)
 end
 
