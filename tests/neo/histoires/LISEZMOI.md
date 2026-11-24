@@ -19,6 +19,14 @@ inform -v5 tests/neo/sources/accents.inf tests/neo/histoires/accents.z5
 inform -v5 tests/neo/sources/annuler.inf tests/neo/histoires/annuler.z5
 ```
 
+`testz6.z6` et `testz6scroll.z6` sont compilés depuis les sources de l'amont (`testz6.inf`,
+`testz6scroll.inf`, à la racine du dépôt, licence d'Ozmoo) :
+
+```sh
+inform -v6 testz6.inf tests/neo/histoires/testz6.z6
+inform -v6 testz6scroll.inf tests/neo/histoires/testz6scroll.z6
+```
+
 Licence de czech, reprise telle quelle de `test/czech/README.txt` :
 
 ```

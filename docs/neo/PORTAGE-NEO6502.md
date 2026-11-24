@@ -27,7 +27,7 @@ Les parties sauvées sont écrites à côté : `MINIZORK.SV0` à `MINIZORK.SV9`.
 Dans l'émulateur du firmware : `ruby make.rb -t:neo -s examples/minizork.z3` (exécutable `neo`, à mettre
 dans le `PATH` ou à déclarer dans `.ozmoorc` : `NEO = /chemin/vers/Neo6502Trinity/bin/neo`).
 
-## État (version 0.4.0, sprint 4)
+## État (version 0.5.0, sprint 5)
 
 Vérifié dans l'émulateur `neo` de Trinity (0.16.112), par `make -C tests/neo` :
 
@@ -40,6 +40,8 @@ Vérifié dans l'émulateur `neo` de Trinity (0.16.112), par `make -C tests/neo`
 | `adventure` | advent_punyinform.z5 (80 Ko, plus que la RAM) | 12 commandes |
 | `sauvegarde` | minizork.z3 | `save` puis `restore` dans l'emplacement 4 |
 | `redemarrage` | minizork.z3 | `restart` (rechargement du `.NEO`) |
+| `z6-test` | testz6.z6 (`testz6.inf` de l'amont) | opcodes v6 : pile utilisateur, fenêtres, marges, flux 3, print_form, picture_data |
+| `z6-defilement` | testz6scroll.z6 (`testz6scroll.inf` de l'amont) | fenêtre partielle (6 x 20) qui défile sans toucher au reste de l'écran |
 | `annuler` | annuler.z5 (`tests/neo/sources/`) | `save_undo` / `restore_undo` : annulation, puis échec de la seconde (un niveau) |
 | `annuler-adventure` | advent_punyinform.z5 | commande `undo` du jeu |
 | `saisie-chronometree` | chrono.z5 (`tests/neo/sources/`) | `read_char` et `aread` avec délai : routine appelée 10 fois par seconde |
@@ -47,11 +49,16 @@ Vérifié dans l'émulateur `neo` de Trinity (0.16.112), par `make -C tests/neo`
 | `clavier-azerty` | accents.z5 avec `-neokbd:fr` | touches é è ç à ù du clavier AZERTY, `^` puis `e` |
 
 Et `tests/neo/non-regression.sh` : l'interpréteur des cibles C64, C128, Plus/4, MEGA65 et X16 (minizork.z3,
-czech.z5, praxix.z5) est identique, octet pour octet, à celui de l'amont `5b990fb`.
+czech.z5, praxix.z5, testz6.z6) est identique, octet pour octet, à celui de l'amont `5b990fb`.
 
 Fonctions :
 
-- Versions Z1 à Z5, Z7 et Z8 en texte (Z3, Z4, Z5 et Z8 testées) ; Z6 est refusée par make.rb pour l'instant.
+- Versions Z1 à Z5, Z7 et Z8 en texte (Z3, Z4, Z5 et Z8 testées).
+- Version 6 (jeux à fenêtres : Journey, Arthur, Zork Zero, Shogun) en mode texte 3, **sans images** : à la
+  place d'une image, Ozmoo écrit une note « pic:N » (comme sur C64) ; les lettrines de Zork Zero manquent.
+  Les fenêtres Z6 sont des rectangles : une fenêtre pleine largeur défile par 5,14 ; une fenêtre partielle
+  est recopiée ligne par ligne (grille relue par 12,2 en `$80:0000` / `$80:1388`, réécrite par 5,13).
+  L'invite `[MORE]` clignote dans le coin bas droit de la fenêtre et rend ensuite la cellule telle qu'elle était.
 - Mémoire virtuelle par blocs de 512 octets lus dans le fichier de l'histoire (3,6 Seek + 3,8 Read), de
   `story_start` à `$FBFF` (pour Adventure : 28 blocs de mémoire dynamique et 68 de mémoire virtuelle).
 - Écran : mode texte 3 de Trinity, **80 × 25** (5,13 Text Write, 5,14 Text Scroll, 5,15 Text Clear),
@@ -84,6 +91,7 @@ Non testé : la saisie d'une majuscule accentuée (le crochet `hid:` de `neo` n'
 | `asm/undo-neo.asm` | annulation : copie de l'état dans la mémoire graphique `$90` par 12,2 |
 | `asm/save-neo.asm` | sauvegarde, restauration, redémarrage (inclus dans la zone `save_restore` de `disk.asm`) |
 | `asm/screenkernal.asm`, `asm/screen.asm` | branches `TARGET_NEO` à côté de celles de l'X16 |
+| `asm/screenkernal-z6.asm`, `asm/screen-z6.asm` | idem pour les jeux v6 ; primitives `neo_copy_cells`, `neo_blank_cells`, `neo_scroll_rows` dans `neo.asm` |
 | `asm/disk.asm`, `asm/ozmoo.asm`, `asm/utilities.asm` | le code de disquette CBM est exclu, la configuration est déjà en mémoire |
 | `make.rb` | cible `neo`, mode `MODE_NEO`, écriture du `.NEO` (`write_neo_file`, `build_neo`) |
 
@@ -123,6 +131,10 @@ jouent des histoires tirées de l'image Macintosh « Infocom Masterpieces » si 
 `../infocom-masterpieces/jeux/` (à côté du dépôt), et sont sautés sinon. Extraction (hfsutils) : la partie
 données de chaque programme Mac `IN..` est l'histoire (`hmount`, puis `hcopy -r`).
 
+Version 6 (0.5.0) : Journey (PC r83, cas `infocom-journey`), Zork Zero (PC r393, `infocom-zorkzero`), Arthur
+(Mac r54, `infocom-arthur`), en texte. Les versions PC viennent des archives de bmarty, rangées dans
+`../infocom-masterpieces/ibm/`.
+
 Essayés dans `neo` (0.4.0) : Zork I, Trinity (37,7 Ko de mémoire dynamique, 137 blocs lus pour 4
 commandes), Sherlock (cas de test) ; A Mind Forever Voyaging, Beyond Zork, Border Zone (horloge en temps
 réel) démarrent et répondent (captures, pas de cas).
@@ -149,6 +161,11 @@ drapeau 8), seules 23 images sur 134 se décodent avec cet algorithme (CGA non u
 Zork Zero IBM r393 : 503 entrées, 396 images, 640 × 200 en EGA (moitié de la largeur sur l'écran de
 320 × 240 du mode 2), 16 couleurs fixes de l'EGA ; mémoire dynamique 29,2 Ko.
 
+Firmware : Trinity 0.16.114 (commit `f98b7b73`, pas encore publié) apporte le groupe 41 « Infocom
+Pictures » : 41,1 Picture Info (canal, numéro → taille, drapeaux, données, palette) et 41,2 Draw Picture
+(canal, numéro, X, Y, options : moitié de largeur, transparence, palette MG1, palette EGA) en mode 2. Pas
+encore utilisé par Ozmoo : il faut d'abord que le texte des jeux v6 passe en mode 2.
+
 ## Essai sur la carte
 
 `tests/neo/paquet-cle.sh` (ou `make -C tests/neo paquet`) prépare `build-neo/cle/OZMOO/` : six histoires
@@ -158,9 +175,11 @@ de vérifications [ESSAI-CARTE.md](ESSAI-CARTE.md). Lancement depuis NeoDOS : `C
 ## Tests
 
 `tests/neo/run_story.sh` construit une histoire avec `-neotest`, la joue dans l'émulateur `neo` avec des
-touches tapées (crochet `keys:`, ou codes HID bruts par `hid:`) et écrit l'écran final. Avec `-neotest`, `[MORE]` ne bloque pas et `quit`
+touches tapées (crochet `keys:`, ou codes HID bruts par `hid:` à partir de `HIDSTART`) et écrit l'écran final. Avec `-neotest`, `[MORE]` ne bloque pas et `quit`
 recopie la grille du mode 3 en `$F000` (12,2) avant de sauter en `$FFFF`, ce qui arrête `neo` et écrit
-`memory.dump`. `make -C tests/neo` joue toute la suite (voir `tests/neo/Makefile`).
+`memory.dump`. Dans une version de test, Échap (`\e`, ou le code HID 29) fait la même chose, pour les jeux
+qu'on ne quitte pas simplement. Un attendu peut aussi exiger qu'une ligne soit absente (`!~ motif`).
+`make -C tests/neo` joue toute la suite (voir `tests/neo/Makefile`).
 
 Les versions de test comptent aussi les blocs lus dans l'histoire (`neo_test_reads`, recopié après la
 grille) ; un cas peut en borner le nombre (`LECTURES=min-max`). Mesures de la 0.3.0 : Adventure, 27 blocs

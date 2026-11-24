@@ -4077,10 +4077,8 @@ if $target == 'c128' and $interpreter_number == nil
 	$interpreter_number = 7
 end
 
-if $target == 'neo' and $zcode_version == 6
-	puts "ERROR: Z-machine version 6 is not supported yet on the neo target platform."
-	exit 1
-end
+# neo : les jeux v6 tournent en mode texte 3 (80 x 25), sans images pour l'instant (-pics est
+# refuse plus haut pour les cibles autres que x16 et mega65).
 
 
 # get dynmem size (in vmem blocks)

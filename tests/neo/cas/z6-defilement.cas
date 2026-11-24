@@ -1,0 +1,7 @@
+# testz6scroll.z6 (testz6scroll.inf de l'amont) : écran rempli de #, fenêtre 1 de 6 x 20 en ligne 9,
+# colonne 11, qui défile (copie de cellules 12,2 + 5,13) sans toucher aux # autour. Le saut de ligne
+# après « done! » fait ensuite monter tout l'écran d'une ligne (5,14).
+STORY=tests/neo/histoires/testz6scroll.z6
+KEYS='x'
+KEYSTART=150000000
+CYCLES=300000000

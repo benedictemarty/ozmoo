@@ -558,6 +558,7 @@ show_more_prompt
 	jmp .increase_num_rows_done
 }
 	; Un « * » en inverse dans le coin bas droit, qui clignote jusqu'a une touche
+	jsr neo_more_save
 	ldy #0
 .neo_more_blink
 	tya

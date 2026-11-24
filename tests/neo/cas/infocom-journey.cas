@@ -1,0 +1,9 @@
+# Journey (Infocom, v6, release 83, version PC) gardé hors du dépôt : écran titre, menu, puis
+# « Start » (Entrée en HID à 400 M cycles) ; Échap arrête la version de test. Sans images.
+STORY=../infocom-masterpieces/ibm/journey/JOURNEY.ZIP
+SI_PRESENT=1
+KEYS=' '
+KEYSTART=120000000
+HIDKEYS=28,29
+HIDSTART=400000000
+CYCLES=900000000

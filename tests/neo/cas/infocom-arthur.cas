@@ -1,0 +1,9 @@
+# Arthur (Infocom, v6, release 54, version Macintosh : STORY.DATA de « Infocom Masterpieces ») gardé
+# hors du dépôt : N à la question de restauration, puis texte d'ouverture.
+STORY=../infocom-masterpieces/z6/arthur/STORY.DATA
+SI_PRESENT=1
+KEYS='n'
+KEYSTART=250000000
+HIDKEYS=29
+HIDSTART=600000000
+CYCLES=700000000

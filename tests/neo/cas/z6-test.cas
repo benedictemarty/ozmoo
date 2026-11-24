@@ -1,0 +1,5 @@
+# testz6.z6 (testz6.inf de l'amont, compilé en v6) : opcodes v6 (pile utilisateur, fenêtres, marges,
+# styles, flux 3, print_form, picture_data, sread). Mode texte 3, pas d'images : « pic:N ».
+STORY=tests/neo/histoires/testz6.z6
+KEYS='hello\n'
+CYCLES=300000000

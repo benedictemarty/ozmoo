@@ -1,0 +1,7 @@
+size \(cells\) 80 x 25$
+pics 0 rel 0$
+pic 7 absent$
+> hello$
+done!$
+!~ ERROR
+!~ BAD

@@ -49,6 +49,14 @@ neo_getchar
 	jsr neo_api_call
 	lda neo_api_param
 	beq .gc_done
+!ifdef NEO_TEST {
+	; Build de test : Échap arrête tout de suite (écran recopié, puis $FFFF), pour les
+	; jeux qu'on ne quitte pas simplement
+	cmp #27
+	bne +
+	jmp neo_reset
++
+}
 	ldx neo_dead_key
 	bne .gc_compose
 	cmp #'^'
@@ -538,6 +546,155 @@ neo_scroll_up
 	ldx #5
 	jmp neo_api_call ; 5,14 : Text Scroll
 
+; Grille du mode 3 : glyphes en $80:0000, attributs en $80:1388, 80 octets par ligne
+NEO_T80_ATTRS = $1388
+neo_row80_lo	!for .r, 0, 24 { !byte <(.r * SCREEN_WIDTH) }
+neo_row80_hi	!for .r, 0, 24 { !byte >(.r * SCREEN_WIDTH) }
+
+!ifdef Z6 {
+; ---------------------------------------------------------------------------------
+; Z6 : fenêtres rectangulaires. Le défilement du firmware (5,14) ne prend que des
+; lignes entières ; pour une fenêtre partielle, on relit la grille du mode 3
+; ($80:0000 glyphes, $80:1388 attributs, 80 octets par ligne) par 12,2 et on la
+; réécrit une ligne plus loin par 5,13, un appel par suite de cellules de même
+; attribut (l'écran est peint à partir de plans que seules les fonctions du
+; firmware tiennent à jour : copier la grille elle-même ne changerait rien).
+; ---------------------------------------------------------------------------------
+neo_cc_src		!byte 0 ; ligne source
+neo_cc_dst		!byte 0 ; ligne destination
+neo_cc_left		!byte 0 ; première colonne
+neo_cc_count	!byte 0 ; nombre de colonnes
+neo_cc_i		!byte 0
+neo_cc_attr		!byte 0
+neo_row_glyphs	!fill SCREEN_WIDTH, 0
+neo_row_attrs	!fill SCREEN_WIDTH, 0
+
+; 12,2 de la grille vers la RAM : A = octet bas de l'ajout ($00 glyphes, ...), X = octet
+; haut, Y/neo_tmp_y = destination (octet bas / haut).
+.neo_cc_fetch
+	pha
+	txa
+	pha
+	ldx neo_cc_src
+	lda neo_row80_lo,x
+	clc
+	adc neo_cc_left
+	sta neo_api_param + 1
+	lda neo_row80_hi,x
+	adc #0
+	sta neo_api_param + 2
+	pla
+	tax
+	pla
+	clc
+	adc neo_api_param + 1
+	sta neo_api_param + 1
+	txa
+	adc neo_api_param + 2
+	sta neo_api_param + 2
+	lda #$80
+	sta neo_api_param
+	lda #0
+	sta neo_api_param + 3
+	sta neo_api_param + 7
+	sty neo_api_param + 4
+	lda neo_tmp_y
+	sta neo_api_param + 5
+	lda neo_cc_count
+	sta neo_api_param + 6
+	lda #2
+	ldx #12
+	jmp neo_api_call ; 12,2 : Simple Blit Copy
+
+neo_copy_cells
+	lda neo_cc_count
+	bne +
+	rts
++	lda #>neo_row_glyphs
+	sta neo_tmp_y
+	ldy #<neo_row_glyphs
+	lda #0
+	ldx #0
+	jsr .neo_cc_fetch
+	lda #>neo_row_attrs
+	sta neo_tmp_y
+	ldy #<neo_row_attrs
+	lda #<NEO_T80_ATTRS
+	ldx #>NEO_T80_ATTRS
+	jsr .neo_cc_fetch
+	lda #0
+	sta neo_cc_i
+.cc_run
+	ldx neo_cc_i
+	cpx neo_cc_count
+	bcs .cc_done
+	lda neo_row_attrs,x
+	sta neo_cc_attr
+	ldy #0
+-	lda neo_row_glyphs,x
+	sta neo_text_buffer + 1,y
+	iny
+	inx
+	cpx neo_cc_count
+	bcs +
+	lda neo_row_attrs,x
+	cmp neo_cc_attr
+	beq -
++	sty neo_text_buffer
+	lda neo_cc_i
+	stx neo_cc_i
+	clc
+	adc neo_cc_left
+	sta neo_api_param
+	lda neo_cc_dst
+	sta neo_api_param + 1
+	lda neo_cc_attr
+	sta neo_api_param + 2
+	lda #<neo_text_buffer
+	sta neo_api_param + 3
+	lda #>neo_text_buffer
+	sta neo_api_param + 4
+	lda #13
+	ldx #5
+	jsr neo_api_call ; 5,13 : Text Write
+	jmp .cc_run
+.cc_done
+	rts
+
+; Efface les colonnes Y (incluse) à X (exclue) de la ligne A, dans le fond de la
+; fenêtre (ou la couleur du texte si les couleurs sont inversées : s_colour_swap).
+neo_blank_cells
+	stx neo_tmp_ink
+	cpy neo_tmp_ink
+	bcs +
+	sta neo_api_param + 1
+	sta neo_api_param + 3
+	sty neo_api_param
+	dex
+	stx neo_api_param + 2
+	ldx s_colour_swap
+	jsr neo_make_attr
+	sta neo_api_param + 4
+	lda #15
+	ldx #5
+	jmp neo_api_call ; 5,15 : Text Clear
++	rts
+
+; Fait défiler les lignes A (haut) à X (bas, incluse) pleine largeur de Y lignes
+; (Y = 1 vers le haut, $ff vers le bas), les lignes libérées prenant le fond de la
+; fenêtre (s_colour_swap compris).
+neo_scroll_rows
+	sta neo_api_param
+	stx neo_api_param + 1
+	sty neo_api_param + 2
+	ldx s_colour_swap
+	jsr neo_make_attr
+	sta neo_api_param + 3
+	lda #14
+	ldx #5
+	jmp neo_api_call ; 5,14 : Text Scroll
+}
+
 ; Curseur d'Ozmoo : un pavé (219) à la couleur du curseur, ou un espace quand le
 ; curseur clignotant est éteint. Y = colonne.
 neo_draw_cursor
@@ -555,14 +712,61 @@ neo_draw_cursor
 	sta s_colour
 	rts
 
-; Invite [MORE] : un « * » en inverse dans le coin bas droit.
+; Invite [MORE] : un « * » en inverse dans la cellule (neo_more_col, neo_more_row), qui
+; clignote avec ce qu'elle contenait (glyphe et attribut relus dans la grille du mode 3
+; par neo_more_save). Le texte la place dans le coin bas droit de l'écran, le Z6 dans
+; celui de la fenêtre courante. Y préservé.
+neo_more_col	!byte SCREEN_WIDTH - 1
+neo_more_row	!byte SCREEN_HEIGHT - 1
+neo_more_glyph	!byte $20
+neo_more_attr	!byte 0
+
+neo_more_save
+	sty neo_save_y
+	ldx neo_more_row
+	lda neo_row80_lo,x
+	clc
+	adc neo_more_col
+	sta neo_api_param + 1
+	lda neo_row80_hi,x
+	adc #0
+	sta neo_api_param + 2
+	lda #<neo_more_glyph
+	ldx #>neo_more_glyph
+	jsr .neo_more_fetch
+	lda neo_api_param + 1
+	clc
+	adc #<NEO_T80_ATTRS
+	sta neo_api_param + 1
+	lda neo_api_param + 2
+	adc #>NEO_T80_ATTRS
+	sta neo_api_param + 2
+	lda #<neo_more_attr
+	ldx #>neo_more_attr
+	jsr .neo_more_fetch
+	ldy neo_save_y
+	rts
+.neo_more_fetch ; 12,2 d'un octet de $80:(param 1,2) vers A/X
+	sta neo_api_param + 4
+	stx neo_api_param + 5
+	lda #$80
+	sta neo_api_param
+	lda #0
+	sta neo_api_param + 3
+	sta neo_api_param + 7
+	lda #1
+	sta neo_api_param + 6
+	lda #2
+	ldx #12
+	jmp neo_api_call
+
 neo_show_more
 	sty neo_save_y
 	lda zp_screenline + 1
 	pha
-	lda s_screen_height_minus_one
+	lda neo_more_row
 	sta zp_screenline + 1
-	ldy s_screen_width_minus_one
+	ldy neo_more_col
 	lda #'*'
 	ldx #$80
 	jsr neo_print_cp437
@@ -571,12 +775,23 @@ neo_hide_more
 	sty neo_save_y
 	lda zp_screenline + 1
 	pha
-	lda s_screen_height_minus_one
-	sta zp_screenline + 1
-	ldy s_screen_width_minus_one
-	lda #' '
-	ldx #0
-	jsr neo_print_cp437
+	lda neo_more_glyph
+	sta neo_text_buffer + 1
+	lda #1
+	sta neo_text_buffer
+	lda neo_more_col
+	sta neo_api_param
+	lda neo_more_row
+	sta neo_api_param + 1
+	lda neo_more_attr
+	sta neo_api_param + 2
+	lda #<neo_text_buffer
+	sta neo_api_param + 3
+	lda #>neo_text_buffer
+	sta neo_api_param + 4
+	lda #13
+	ldx #5
+	jsr neo_api_call ; 5,13 : la cellule telle qu'elle était
 +	pla
 	sta zp_screenline + 1
 	ldy neo_save_y

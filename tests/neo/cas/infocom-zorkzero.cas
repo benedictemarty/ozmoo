@@ -1,0 +1,7 @@
+# Zork Zero (Infocom, v6, release 393, version PC) gardé hors du dépôt : 29,2 Ko de mémoire dynamique
+# (59 blocs), 27 de mémoire virtuelle ; undo retiré. Sans images (notes « pic:N », lettrines absentes).
+STORY=../infocom-masterpieces/ibm/zorkzero/ZORK0.ZIP
+SI_PRESENT=1
+KEYS='\e'
+KEYSTART=200000000
+CYCLES=600000000

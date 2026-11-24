@@ -1696,7 +1696,8 @@ init_screen_colours
 	; calculate the position for the more prompt
 	; (self modifying code since we don't want to
 	; ZP space is limited)
-!ifndef TARGET_X16 {
+!ifdef TARGET_NEO { ; Neo : [MORE] dessiné par neo_show_more
+} else ifndef TARGET_X16 {
 	lda s_screen_size + 1
 	clc
 	adc #>SCREEN_ADDRESS
@@ -2827,6 +2828,34 @@ show_more_prompt
 	jsr .set_more_prompt_pos
 	lda #$ff ; the first pass below INCs this to 0 (even = the prompt is shown)
 	sta .more_blink_phase
+!ifdef TARGET_NEO {
+!ifdef NEO_TEST {
+	; Build de test : pas d'attente, les tests ne voient que l'écran final
+	jmp .increase_num_rows_done
+}
+	; Un « * » en inverse dans le coin bas droit de la fenêtre, qui clignote avec
+	; le contenu de la cellule jusqu'à une touche
+	jsr neo_more_save
+.neo_more_blink
+	inc .more_blink_phase
+	lda .more_blink_phase
+	and #1
+	bne +
+	jsr neo_show_more
+	jmp ++
++	jsr neo_hide_more
+++	ldx #40
+-	jsr wait_a_jiffy
+	jsr getchar_and_maybe_toggle_darkmode
+	cmp #0
+	bne .neo_more_done
+	dex
+	bne -
+	beq .neo_more_blink ; toujours
+.neo_more_done
+	jsr neo_hide_more
+	jmp .increase_num_rows_done
+}
 
 !ifdef TARGET_C128 {
     bit COLS_40_80
@@ -3010,7 +3039,28 @@ show_more_prompt
 	; window. In z6 every window has its own rectangle, so this can't be a
 	; fixed address: the VIC/VDC targets rewrite the addresses in
 	; .more_access1-4, and the X16 remembers the cell for VERAPrintChar.
-!ifdef TARGET_X16 {
+!ifdef TARGET_NEO {
+	ldx current_window
+	lda window_x,x
+	clc
+	adc window_x_size,x
+	cmp s_screen_width
+	bcc +
+	lda s_screen_width
++	sec
+	sbc #1
+	sta neo_more_col
+	lda window_y,x
+	clc
+	adc window_y_size,x
+	cmp s_screen_height
+	bcc +
+	lda s_screen_height
++	sec
+	sbc #1
+	sta neo_more_row
+	rts
+} else ifdef TARGET_X16 {
 	ldx current_window
 	; last column of the window, clamped to the screen
 	lda window_x,x
@@ -3283,7 +3333,13 @@ print_line_from_buffer
 .printline40
 }
 
-!ifdef TARGET_X16 {
+!ifdef TARGET_NEO {
+	; Neo : une suite de cellules de même inversion par appel 5,13
+	lda zp_screenrow
+	sta zp_screenline + 1
+	ldy first_buffered_column
+	jsr neo_print_buffer_line
+} else ifdef TARGET_X16 {
 	; Address every cell, as the other targets do. This used to print the first
 	; character through s_printchar and let the rest ride on the VERA address
 	; pointer that call left behind (and undo its cursor step with a "no idea

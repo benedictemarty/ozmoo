@@ -1246,6 +1246,11 @@ s_delete_cursor
 }
 !ifdef TARGET_X16 {
 	jmp VERAPrintChar
+} else ifdef TARGET_NEO {
+	lda #$20
+	ldy zp_screencolumn
+	ldx s_colour_swap ; $80 : champ dans la couleur du texte (vidéo inverse)
+	jmp neo_print_cp437
 } else {
 !ifndef Z6_FCM_MODE {
 	ldy zp_screencolumn
@@ -1355,6 +1360,9 @@ s_printchar
 .col80_1_end
 } else ifdef TARGET_X16 {
     jsr VERAPrintChar
+} else ifdef TARGET_NEO {
+	ldx s_colour_swap
+	jsr neo_print_cp437
 } else {
 	sta (zp_screenline),y
 	+clear_cell_high_byte
@@ -1420,6 +1428,7 @@ s_printchar
 	bpl .resume_printing_normal_char
 	inc s_ignore_next_linebreak,x
 .resume_printing_normal_char
+!ifndef TARGET_NEO { ; Neo : le caractère reste en PETSCII, neo_print_petscii le traduit
 	jsr convert_petscii_to_screencode
 !ifdef Z6_ECM_MODE {
 	and #$3f ; only 64 characters, and the top bits select the background
@@ -1427,6 +1436,7 @@ s_printchar
 } else {
 	ora s_reverse
 	ora s_colour_swap ; swapped colours render as reverse video
+}
 }
 	pha
 	jsr .update_screenpos
@@ -1457,6 +1467,13 @@ s_printchar
 	jsr VERAPrintChar
 	; lda s_colour
 	; jsr VERAPrintColourAfterChar
+} else ifdef TARGET_NEO {
+	pha
+	lda s_reverse
+	ora s_colour_swap ; swapped colours render as reverse video
+	tax
+	pla
+	jsr neo_print_petscii
 } else {
 !ifdef Z6_FCM_TEXT_BAKE {
 	; If this is a transparent window and a picture tile is under the cell, bake
@@ -1583,6 +1600,9 @@ s_printchar
 } else ifdef TARGET_X16 {
 	jsr .s_scroll_vera
 	jmp .wrap_move_to_left_edge
+} else ifdef TARGET_NEO {
+	jsr .s_scroll_neo
+	jmp .wrap_move_to_left_edge
 } else {
 	jsr .s_scroll
 	jmp .wrap_move_to_left_edge
@@ -1646,7 +1666,14 @@ s_erase_window
 	beq .same_row
 	; need to recalculate zp_screenline
 	stx s_current_screenpos_row
-!ifdef TARGET_X16 {
+!ifdef TARGET_NEO {
+	; Neo : pas de mémoire d'écran, le pointeur de ligne porte le numéro de ligne
+	stx zp_screenline + 1
+	stx zp_colourline + 1
+	lda #0
+	sta zp_screenline
+	sta zp_colourline
+} else ifdef TARGET_X16 {
     txa
 	sta zp_screenline + 1
 	sta zp_colourline + 1
@@ -1842,6 +1869,7 @@ s_reset_scrolled_lines
 s_scrolled_lines !byte 0
 }
 
+!ifndef TARGET_NEO { ; Neo : .s_scroll_neo
 .s_scroll
 	; Scroll the current window's rectangle up one line and erase the
 	; window's new last line. Leaves zp_screenrow on that last line.
@@ -2085,6 +2113,8 @@ s_scrolled_lines !byte 0
 	sty zp_screencolumn
 	rts
 
+} ; !ifndef TARGET_NEO
+
 .calc_window_rect
 	; work out the current window's rectangle on screen, clamped to it
 	; .win_left/.win_top are inclusive, .win_right_excl is exclusive,
@@ -2123,6 +2153,36 @@ s_scrolled_lines !byte 0
 }
 .win_top        !byte 0
 .win_bottom     !byte 0
+
+!ifdef TARGET_NEO {
+.s_scroll_neo
+	; Neo : comme .s_scroll_vera. Fait monter le rectangle de la fenêtre courante
+	; d'une ligne, efface sa nouvelle dernière ligne et y laisse zp_screenrow.
+	jsr .calc_window_rect
+!ifdef SCROLLBACK {
+	inc s_scrolled_lines
+}
+	jsr .sw_up_one
+	ldy .win_left
+	sty zp_screencolumn
+	rts
+
+.sw_neo_full_width
+	; C = 1 si le rectangle de la fenêtre prend toute la largeur de l'écran
+	lda .win_left
+	bne +
+	lda .win_right_excl
+	cmp s_screen_width
+	rts
++	clc
+	rts
+
+.sw_neo_scroll
+	; défilement pleine largeur par le firmware : Y = 1 (haut) ou $ff (bas)
+	lda .win_top
+	ldx .win_bottom
+	jmp neo_scroll_rows
+}
 
 s_scroll_window
 	; Scroll a window's rectangle by whole lines, blanking the lines that are
@@ -2184,6 +2244,15 @@ s_scroll_window
 	; every line takes the contents of the one below it; the last goes blank
 	jsr .sw_has_rows
 	bcc .sw_no_rows
+!ifdef TARGET_NEO {
+	jsr .sw_neo_full_width
+	bcc +
+	ldy #1
+	jsr .sw_neo_scroll
+	lda .win_bottom
+	jmp .sw_point_at_row
++
+}
 	lda .win_top
 	sta .sw_dst
 	clc
@@ -2203,6 +2272,15 @@ s_scroll_window
 	; every line takes the contents of the one above it; the first goes blank
 	jsr .sw_has_rows
 	bcc .sw_no_rows
+!ifdef TARGET_NEO {
+	jsr .sw_neo_full_width
+	bcc +
+	ldy #$ff
+	jsr .sw_neo_scroll
+	lda .win_top
+	jmp .sw_point_at_row
++
+}
 	lda .win_bottom
 	sta .sw_dst
 	sec
@@ -2237,6 +2315,18 @@ s_scroll_window
 	; copy the window's columns from row .sw_src to row .sw_dst
 !ifdef TARGET_X16 {
 	jmp .vera_copy_row ; the VERA screen is not in the CPU's address space
+} else ifdef TARGET_NEO {
+	lda .sw_src
+	sta neo_cc_src
+	lda .sw_dst
+	sta neo_cc_dst
+	lda .win_left
+	sta neo_cc_left
+	lda .win_right_excl
+	sec
+	sbc .win_left
+	sta neo_cc_count
+	jmp neo_copy_cells
 } else {
 !ifdef TARGET_C128 {
 	bit COLS_40_80
@@ -2333,6 +2423,13 @@ s_scroll_window
 .sw_blank_row
 	; a = row. Blank the window's columns on it.
 	jsr .sw_point_at_row
+!ifdef TARGET_NEO {
+	lda zp_screenrow
+	ldy .win_left
+	ldx .win_right_excl
+	stx zp_screencolumn
+	jmp neo_blank_cells
+}
 	ldy .win_left
 	sty zp_screencolumn
 	; s_delete_cursor clobbers y, and under FCM it leaves a byte offset in it
@@ -2367,6 +2464,12 @@ s_erase_line
 	jsr .update_screenpos
 	ldy #0
 .erase_line_from_any_col	
+!ifdef TARGET_NEO {
+	; Neo : de la colonne Y à la fin de la ligne de l'écran, par 5,15
+	lda zp_screenrow
+	ldx s_screen_width
+	jmp neo_blank_cells
+}
 !ifdef TARGET_C128 {
 	bit COLS_40_80
 	bmi .col80_5
@@ -2599,8 +2702,11 @@ update_cursor
 	jsr VERASetForegroundColour
 	; lda current_cursor_colour
 	; jsr VERAPrintColourAfterChar
+} else ifdef TARGET_NEO {
+	jsr neo_draw_cursor
 }
-!ifndef TARGET_X16 {
+!ifdef TARGET_NEO {
+} else ifndef TARGET_X16 {
 !ifdef Z6_FCM_MODE {
     lda zp_screencolumn ; a cell is two bytes wide
     asl
