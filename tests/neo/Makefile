@@ -2,14 +2,18 @@
 # l'un après l'autre (ils partagent temp/ et neo_<jeu>/ à la racine du dépôt).
 # make -C tests/neo            tous les cas
 # make -C tests/neo minizork   un seul cas
+# make -C tests/neo paquet     dossier pour la clé USB (build-neo/cle/OZMOO), vérifié
 # NEO=/chemin/vers/bin/neo     émulateur (défaut : ~/Projets/Neo6502Trinity/bin/neo)
 CAS := $(basename $(notdir $(wildcard cas/*.cas)))
 
-.PHONY: all $(CAS)
+.PHONY: all paquet $(CAS)
 .NOTPARALLEL:
 
-all: $(CAS)
-	@echo "Tous les tests Neo6502 sont passés ($(words $(CAS)) cas)."
+all: $(CAS) paquet
+	@echo "Tous les tests Neo6502 sont passés ($(words $(CAS)) cas + paquet)."
+
+paquet:
+	./paquet-cle.sh > /dev/null || ./paquet-cle.sh
 
 $(CAS):
 	./check.sh $@

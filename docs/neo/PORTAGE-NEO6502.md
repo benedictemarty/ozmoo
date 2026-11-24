@@ -94,6 +94,12 @@ Le chargeur du firmware (3,2) prend le canal 0 : l'histoire est ouverte sur le *
 la partie. Les sauvegardes passent par 3,3 Store File et 3,2 Load File (taille vérifiée par 3,16 avant de
 charger).
 
+## Essai sur la carte
+
+`tests/neo/paquet-cle.sh` (ou `make -C tests/neo paquet`) prépare `build-neo/cle/OZMOO/` : six histoires
+(minizork, advent_punyinform, dragontroll, etude, czech, praxix) prêtes à copier sur la clé, avec la liste
+de vérifications [ESSAI-CARTE.md](ESSAI-CARTE.md). Lancement depuis NeoDOS : `CD \OZMOO` puis `MINIZORK`.
+
 ## Tests
 
 `tests/neo/run_story.sh` construit une histoire avec `-neotest`, la joue dans l'émulateur `neo` avec des
