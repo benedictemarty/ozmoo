@@ -138,7 +138,13 @@ pas décodables (compression inconnue).
 - `tools/neo/mkpic.py` : écrit un fichier d'images de test libre de droits (formats EG1 et MG1 ; codes
   jusqu'à 12 bits, remises à zéro de la table, transparence, image sans données, palette).
 - `tests/neo/infopic_test.py` (`make -C tests/neo images`) : aller-retour mkpic/infopic ; si présent,
-  `../infocom-masterpieces/ibm/zorkzero/ZORK0.EG1` (Zork Zero r393) : 396 images complètes.
+  `../infocom-masterpieces/ibm/zorkzero/ZORK0.EG1` (Zork Zero r393) : 396 images complètes ;
+  `../infocom-masterpieces/ibm/journey/JOURNEY.MG1` (Journey r83) : 134 images avec palette.
+
+Journey IBM r83 (mémoire dynamique 15,4 Ko) : `JOURNEY.MG1` (VGA), 134 images de 320 de large au plus,
+chacune avec sa palette (14 couleurs au plus), donc sans réduction sur la Neo ; les images EGA sont réparties
+sur deux fichiers (`JOURNEY.EG1`, `JOURNEY.EG2`, champ « part » de l'en-tête) ; dans `JOURNEY.CG1` (CGA,
+drapeau 8), seules 23 images sur 134 se décodent avec cet algorithme (CGA non utilisé sur la Neo).
 
 Zork Zero IBM r393 : 503 entrées, 396 images, 640 × 200 en EGA (moitié de la largeur sur l'écran de
 320 × 240 du mode 2), 16 couleurs fixes de l'EGA ; mémoire dynamique 29,2 Ko.

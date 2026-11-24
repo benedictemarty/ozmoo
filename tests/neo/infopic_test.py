@@ -50,3 +50,14 @@ if os.path.exists(zz):
     print('OK : Zork Zero EG1, 396 images complètes, image 1 conforme')
 else:
     print('SAUTÉ : images de Zork Zero absentes')
+
+jy = os.path.join(ICI, '..', '..', '..', 'infocom-masterpieces', 'ibm', 'journey', 'JOURNEY.MG1')
+if os.path.exists(jy):
+    d, ent, imgs = infopic.lire(jy, ibm=True)
+    completes = sum(1 for im in imgs if im.donnees and len(infopic.decompresser(d, im)) == im.larg * im.haut)
+    assert completes == 134, f'Journey : {completes} images complètes au lieu de 134'
+    avec_palette = sum(1 for im in imgs if im.palette_adr)
+    assert avec_palette == 134, f'Journey : {avec_palette} palettes au lieu de 134'
+    print('OK : Journey MG1 (VGA), 134 images complètes avec leur palette')
+else:
+    print('SAUTÉ : images de Journey absentes')
