@@ -185,7 +185,17 @@ fonctions existantes de Trinity :
 Résultat dans l'émulateur (2026-11-24) : aucun appel en erreur ; affichage et défilement corrects (lignes
 dans l'ordre). Les durées relevées par le compteur d'images (5,37, rangées en `$0F10`) valent 0 dans
 l'émulateur, qui ne compte pas le temps passé dans le firmware : **elles ne valent que sur la carte, pas
-encore mesurées**. `GARDE=dossier` recopie `ESSAI.NEO` et `PIC.MG1` pour un essai sur la carte. Constats :
+encore mesurées**. `GARDE=dossier` recopie `ESSAI.NEO` et `PIC.MG1` pour un essai sur la carte.
+
+Mesures sur la carte (session Trinity, 2026-11-24, firmware 0.16.114 de développement, `JOURNEY.MG1` réel) : les
+12 appels sans erreur ; compteur d'images (résolution 1/60 s, soit 17 ms) : image 1 de Journey (110 × 127) en
+5 images (environ 83 ms) ; 11 lignes de 40 colonnes en 1 image au plus ; 19 lignes de 80 colonnes avec 7
+défilements en 1 image au plus ; 50 fois « défilement + ligne de 80 caractères » en 6 images (environ 2 ms
+chacune). L'affichage de la carte (défilement par 12,3 quand source et destination se chevauchent) reste à
+regarder à l'écran. Piège relevé : 3,4 refuse un canal laissé ouvert par un programme précédent ; Ozmoo et le
+prototype ferment donc tous les canaux (3,5 avec `$FF`) avant d'ouvrir.
+
+Constats :
 
 - 80 colonnes de 4 pixels : lisibles mais grossières (« m », « w ») ; 40 colonnes de 8 pixels : nettes.
 - Police réduite : `{ } \ _ | ~` absents (la police d'Ozmoo suit les codes écran de la C64).

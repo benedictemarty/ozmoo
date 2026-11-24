@@ -42,6 +42,11 @@ start
 	lda #9
 	ldx #5
 	jsr call
+	lda #$ff              ; 3,5 : ferme tous les canaux (un programme précédent peut en avoir laissé un ouvert)
+	sta P
+	lda #5
+	ldx #3
+	jsr call
 	lda #1                ; 32,1 Init Graf
 	ldy #1
 	ldx #32

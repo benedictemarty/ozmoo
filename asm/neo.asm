@@ -274,6 +274,13 @@ neo_init
 	ldx #2
 	jsr neo_api_call ; 2,20 : écho de la console vers le port de debug (stderr)
 }
+	; Ferme d'abord tous les canaux : un programme précédent peut en avoir laissé un ouvert, et 3,4
+	; refuse un canal déjà ouvert (constaté sur la carte, 2026-11-24).
+	lda #$ff
+	sta neo_api_param
+	lda #5
+	ldx #3
+	jsr neo_api_call ; 3,5 : ferme tous les fichiers
 	; Ouvre l'histoire en lecture sur le canal 1
 	lda #NEO_STORY_CHANNEL
 	sta neo_api_param
