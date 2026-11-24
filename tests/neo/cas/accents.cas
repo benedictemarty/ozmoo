@@ -1,0 +1,5 @@
+# accents.z5 (tests/neo/sources/accents.inf) : affichage des ZSCII 155-223 en CP437 ; saisie des
+# symboles ASCII ({ } ~ ` | \ _ ^) et composition par la touche morte ^ (^e -> ê).
+STORY=tests/neo/histoires/accents.z5
+KEYS='{}~`|\\_^ x\n^e^a^i^o^u^y\n\n'
+CYCLES=300000000

@@ -1,0 +1,26 @@
+! chrono.inf : test de la saisie chronométrée (read_char et aread avec délai et routine).
+! Auteur : bmarty <bmarty@mailo.com> ; domaine public.
+! 1) read_char, délai 2 dixièmes, la routine rend vrai au 5e appel  -> attendu : 0, 5 appels
+! 2) aread, délai 2 dixièmes, la routine rend vrai au 5e appel      -> attendu : 0, 5 appels
+! 3) read_char, délai 1 dixième, routine qui rend toujours faux, jusqu'à une touche :
+!    le nombre d'appels mesure le rythme (10 par seconde attendus).
+Array buf -> 82;
+Array prs -> 30;
+Global ticks;
+[ Main k;
+  print "Chrono^";
+  ticks = 0;
+  @read_char 1 2 Tick -> k;
+  print "^1 read_char=", k, " appels=", ticks, "^";
+  ticks = 0;
+  buf->0 = 80; buf->1 = 0;
+  @aread buf prs 2 Tick -> k;
+  print "^2 aread=", k, " appels=", ticks, "^";
+  ticks = 0;
+  @read_char 1 1 Count -> k;
+  print "^3 touche=", k, " appels=", ticks, "^";
+  print "FIN^";
+  @quit;
+];
+[ Tick; ticks++; print "."; if (ticks >= 5) rtrue; rfalse; ];
+[ Count; ticks++; rfalse; ];

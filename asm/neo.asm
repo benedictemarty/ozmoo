@@ -45,8 +45,16 @@ neo_getchar
 	ldx #2
 	jsr neo_api_call
 	lda neo_api_param
-	bmi .gc_high
+	beq .gc_done
+	ldx neo_dead_key
+	bne .gc_compose
+	cmp #'^'
+	beq .gc_dead
+	cmp #$a8 ; tréma
+	beq .gc_dead
+.gc_plain
 	tax
+	bmi .gc_high
 	lda neo_ascii_to_petscii,x
 .gc_done
 	ldx neo_save_x
@@ -54,8 +62,52 @@ neo_getchar
 	cmp #0
 	rts
 .gc_high
-	lda #0 ; Latin-1 ($80-$FF) : pas encore pris en charge
+	; Latin-1 (locale du clavier, 1,6) : code interne de chars-neo.asm, 0 si sans équivalent
+	cpx #$a0
+	bcc .gc_none
+	lda neo_latin1_to_internal - $a0,x
+	jmp .gc_done
+.gc_dead
+	; ^ et ¨ sont des touches mortes : la touche suivante est composée
+	sta neo_dead_key
+.gc_none
+	lda #0
 	beq .gc_done ; toujours
+.gc_compose
+	; A = touche, X = touche morte en attente
+	ldy #0
+	sty neo_dead_key
+	cmp #$20
+	bne .gc_letter
+	cpx #'^' ; ^ puis espace : ^ ; ¨ puis espace : rien (pas de ¨ en ZSCII)
+	bne .gc_none
+	txa
+	jmp .gc_plain
+.gc_letter
+	sta neo_tmp_key
+	ora #$20 ; minuscule (les majuscules composées donnent la minuscule)
+	ldy #5
+-	cmp neo_dead_vowels,y
+	beq .gc_vowel
+	dey
+	bpl -
+.gc_uncomposed
+	lda neo_tmp_key ; pas une voyelle : la touche morte est perdue
+	jmp .gc_plain
+.gc_vowel
+	cpx #'^'
+	bne +
+	lda neo_dead_circumflex,y
+	jmp ++
++	lda neo_dead_diaeresis,y
+++	beq .gc_uncomposed ; pas de ŷ
+	jmp .gc_done
+
+neo_dead_key		!byte 0
+neo_tmp_key			!byte 0
+neo_dead_vowels		!byte 'a', 'e', 'i', 'o', 'u', 'y'
+neo_dead_circumflex	!byte NEO_ACIR_L, NEO_ECIR_L, NEO_ICIR_L, NEO_OCIR_L, NEO_UCIR_L, 0
+neo_dead_diaeresis	!byte NEO_AUML_L, NEO_EUML_L, NEO_IUML_L, NEO_OUML_L, NEO_UUML_L, NEO_YUML_L
 
 ; ---------------------------------------------------------------------------------
 ; Temps : le compteur de trames (5,37) avance à 60 Hz, la cadence des « jiffies »
@@ -174,6 +226,16 @@ neo_test_dump_screen
 ; fichier de l'histoire. Appelée une fois, au début de deletable_init_start.
 ; ---------------------------------------------------------------------------------
 neo_init
+!ifdef NEO_LOCALE_1 {
+	; -neokbd:xx : locale du clavier (1,6), avant le changement de mode qui efface l'écran
+	lda #NEO_LOCALE_1
+	sta neo_api_param
+	lda #NEO_LOCALE_2
+	sta neo_api_param + 1
+	lda #6
+	ldx #1
+	jsr neo_api_call
+}
 	lda #3
 	sta neo_api_param
 	lda #9
@@ -533,6 +595,26 @@ neo_ascii_to_petscii
 	!byte $a9,$41,$42,$43,$44,$45,$46,$47,$48,$49,$4a,$4b,$4c,$4d,$4e,$4f
 	!byte $50,$51,$52,$53,$54,$55,$56,$57,$58,$59,$5a,$a6,$dd,$a7,$a8,0
 
+; Clavier de la Neo, Latin-1 $A0-$FF (locales de Trinity) vers code interne (chars-neo.asm).
+; Les majuscules accentuées sans glyphe CP437 donnent la minuscule (le dictionnaire est en minuscules).
+neo_latin1_to_internal
+	; $a0 espace insécable, ¡ ¢ £ ¤ ¥ ¦ § ¨ © ª « ¬ shy ® ¯
+	!byte $20, NEO_IEXCL, 0, $5c, 0, 0, 0, 0, 0, 0, 0, NEO_LAQUO, 0, 0, 0, 0
+	; $b0 ° ± ² ³ ´ µ ¶ · ¸ ¹ º » ¼ ½ ¾ ¿
+	!byte 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NEO_RAQUO, 0, 0, 0, NEO_IQUES
+	; $c0 À Á Â Ã Ä Å Æ Ç È É Ê Ë Ì Í Î Ï
+	!byte NEO_AGRV_L, NEO_AACU_L, NEO_ACIR_L, 0, NEO_AUML_U, NEO_ARNG_U, NEO_AELI_U, NEO_CCED_U
+	!byte NEO_EGRV_L, NEO_EACU_U, NEO_ECIR_L, NEO_EUML_L, NEO_IGRV_L, NEO_IACU_L, NEO_ICIR_L, NEO_IUML_L
+	; $d0 Ð Ñ Ò Ó Ô Õ Ö × Ø Ù Ú Û Ü Ý Þ ß
+	!byte 0, NEO_NTIL_U, NEO_OGRV_L, NEO_OACU_L, NEO_OCIR_L, 0, NEO_OUML_U, 0
+	!byte 0, NEO_UGRV_L, NEO_UACU_L, NEO_UCIR_L, NEO_UUML_U, 0, 0, NEO_SZLIG
+	; $e0 à á â ã ä å æ ç è é ê ë ì í î ï
+	!byte NEO_AGRV_L, NEO_AACU_L, NEO_ACIR_L, 0, NEO_AUML_L, NEO_ARNG_L, NEO_AELI_L, NEO_CCED_L
+	!byte NEO_EGRV_L, NEO_EACU_L, NEO_ECIR_L, NEO_EUML_L, NEO_IGRV_L, NEO_IACU_L, NEO_ICIR_L, NEO_IUML_L
+	; $f0 ð ñ ò ó ô õ ö ÷ ø ù ú û ü ý þ ÿ
+	!byte 0, NEO_NTIL_L, NEO_OGRV_L, NEO_OACU_L, NEO_OCIR_L, 0, NEO_OUML_L, 0
+	!byte 0, NEO_UGRV_L, NEO_UACU_L, NEO_UCIR_L, NEO_UUML_L, 0, 0, NEO_YUML_L
+
 ; PETSCII (jeu minuscules/majuscules de la C64) vers CP437 du mode 3
 neo_petscii_to_cp437
 	; $00-$1f : codes de commande, jamais affichés
@@ -540,23 +622,26 @@ neo_petscii_to_cp437
 	; $20-$3f
 	!byte $20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$2a,$2b,$2c,$2d,$2e,$2f
 	!byte $30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$3a,$3b,$3c,$3d,$3e,$3f
-	; $40 @, $41-$5a minuscules, [ £ ] flèche haut, flèche gauche
+	; $40 @, $41-$5a minuscules, [ £ ] ^ _
 	!byte $40,$61,$62,$63,$64,$65,$66,$67,$68,$69,$6a,$6b,$6c,$6d,$6e,$6f
-	!byte $70,$71,$72,$73,$74,$75,$76,$77,$78,$79,$7a,$5b,$9c,$5d,$18,$1b
+	!byte $70,$71,$72,$73,$74,$75,$76,$77,$78,$79,$7a,$5b,$9c,$5d,$5e,$5f
 	; $60-$7f : trait horizontal, puis majuscules (graphismes en jeu minuscule)
 	!byte $c4,$41,$42,$43,$44,$45,$46,$47,$48,$49,$4a,$4b,$4c,$4d,$4e,$4f
 	!byte $50,$51,$52,$53,$54,$55,$56,$57,$58,$59,$5a,$c5,$b3,$b3,$b0,$b1
 	; $80-$9f : codes de commande
 	!fill 32, $20
-	; $a0-$bf : $a5 |, $a6 {, $a7 }, $a8 ~, $a9 `, $af _, $bf \ (voir streams.asm)
+	; $a0-$bf : $a6 {, $a7 }, $a8 ~, $a9 `, $af _, $bf \ (chars-neo.asm),
+	; $b0-$b6 : æ Æ ç Ç ¡ ¿ Ñ (codes internes de chars-neo.asm)
 	!byte $20,$dd,$dc,$c4,$c4,$7c,$7b,$7d,$7e,$60,$b3,$c3,$dc,$c0,$bf,$5f
-	!byte $da,$c1,$c2,$b4,$b3,$dd,$de,$c4,$df,$dc,$d9,$c0,$d9,$bf,$b0,$5c
+	!byte $91,$92,$87,$80,$ad,$a8,$a5,$c4,$df,$dc,$d9,$c0,$d9,$bf,$b0,$5c
 	; $c0-$df : trait, majuscules, puis $dd |
 	!byte $c4,$41,$42,$43,$44,$45,$46,$47,$48,$49,$4a,$4b,$4c,$4d,$4e,$4f
 	!byte $50,$51,$52,$53,$54,$55,$56,$57,$58,$59,$5a,$c5,$b3,$7c,$b0,$b1
-	; $e0-$ff
-	!byte $20,$dd,$dc,$c4,$c4,$b3,$b1,$b3,$b1,$b1,$b3,$c3,$dc,$c0,$bf,$5f
-	!byte $da,$c1,$c2,$b4,$b3,$dd,$de,$c4,$df,$dc,$d9,$c0,$d9,$bf,$b0,$b1
+	; $e0-$fe : lettres accentuées (codes internes de chars-neo.asm)
+	;     ä   ö   ü   Ä   Ö   Ü   ß   »   «   ë   ï   ÿ   á   é   í   ó
+	!byte $84,$94,$81,$8e,$99,$9a,$e1,$af,$ae,$89,$8b,$98,$a0,$82,$a1,$a2
+	;     ú   É   à   è   ì   ò   ù   â   ê   î   ô   û   å   Å   ñ
+	!byte $a3,$90,$85,$8a,$8d,$95,$97,$83,$88,$8c,$93,$96,$86,$8f,$a4,$b1
 
 !source "../temp/neo-files.asm"
 

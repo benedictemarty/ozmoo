@@ -2897,6 +2897,7 @@ def print_usage
 	puts "         [-u[:0|1|r]] [-x[:0|1]] [-df[:0|1|f]] <storyfile>"
 	puts "  -t: specify target machine. Available targets are c64 (default), c128, plus4, mega65, x16 and neo (Neo6502, Trinity firmware)."
 	puts "  -neotest: (neo) test build: on quit, copy the text screen to RAM and stop the emulator."
+	puts "  -neokbd:xx: (neo) set the keyboard locale (firmware function 1,6) at start, e.g. -neokbd:fr."
 	puts "  -S1|-S2|-D2|-D3|-71|-71D|-81|-P|-ZIP: build mode. Defaults to S1 (71 for C128, 81 for MEGA65, ZIP for X16). See docs."
 	puts "  -v: Verbose mode. Print as much details as possible about what make.rb is doing."
 	puts "  -p: preload a maximum of n virtual memory blocks to make game faster at start."
@@ -3104,6 +3105,8 @@ begin
 			end
 		elsif arg =~ /^-neotest$/ then
 			$neo_test = true
+		elsif arg =~ /^-neokbd:([a-zA-Z]{2})$/ then
+			$neo_locale = $1.upcase
 		elsif arg =~ /^-ZIP$/ then
 			mode = MODE_ZIP
 		elsif arg =~ /^-P$/ then
@@ -3523,6 +3526,13 @@ if $target == 'neo'
 	$GENERALFLAGS.push('NODARKMODE') unless $GENERALFLAGS.include?('NODARKMODE')
 	$GENERALFLAGS.push('NOSCROLLBACK') unless $GENERALFLAGS.include?('NOSCROLLBACK')
 	$GENERALFLAGS.push('NEO_TEST') if $neo_test
+	if $char_map
+		puts "WARNING: -cm:#{$char_map} is ignored for neo: accented characters are always on (CP437 screen, Latin-1 keyboard)."
+	end
+	if $neo_locale
+		$GENERALFLAGS.push("NEO_LOCALE_1=#{$neo_locale[0].ord}")
+		$GENERALFLAGS.push("NEO_LOCALE_2=#{$neo_locale[1].ord}")
+	end
 	$no_sector_preload = true
 elsif mode == MODE_NEO
 	puts "ERROR: This build mode is only supported on the neo target platform."

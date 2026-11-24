@@ -1,0 +1,7 @@
+# chrono.z5 (tests/neo/sources/chrono.inf) : read_char et aread avec délai et routine.
+# La touche arrive au cycle 200 000 000 (30,8 s à 6 501 171 cycles/s) ; le test 3 commence
+# vers 2,5 s : environ 280 appels de la routine (un par dixième de seconde).
+STORY=tests/neo/histoires/chrono.z5
+KEYS='x'
+KEYSTART=200000000
+CYCLES=300000000

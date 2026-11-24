@@ -40,7 +40,9 @@ streams_form_stack			!fill 60, 0
 .streams_tmp	!byte 0,0,0
 .current_character !byte 0
 
-!ifdef SWEDISH_CHARS {
+!ifdef TARGET_NEO {
+!source "chars-neo.asm"
+} else ifdef SWEDISH_CHARS {
 
 ; SWEDISH
 
@@ -1175,8 +1177,10 @@ z_ins_output_stream
 }
 
 !ifndef NO_DEFAULT_UNICODE_MAP {
+!ifndef TARGET_NEO { ; Neo : dans chars-neo.asm
 default_unicode_out
 !pet "aouAOUs\"\"eiyEIaeiouyAEIOUYaeiouAEIOUaeiouAEIOUaAoOanoANOaAcCttTTLoO!?" 
+}
 }
 
 translate_zscii_to_petscii

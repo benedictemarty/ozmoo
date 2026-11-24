@@ -1,0 +1,23 @@
+! accents.inf : affichage et saisie des caractères accentués (ZSCII 155-223) sur la Neo.
+! Auteur : bmarty <bmarty@mailo.com> ; domaine public.
+! Affiche une ligne de lettres accentuées, puis lit des lignes et écrit les codes ZSCII tapés,
+! jusqu'à une ligne vide.
+Array buf -> 82;
+Array prs -> 30;
+[ Main i n;
+  print "Accents^";
+  print "A: @'e @`e @^e @`a @cc @`u @^a @^i @^o @^u @:e @:i @:u @:a @:o @<< @>> @'E @cC @AE @~n @?? @!! @ss^";
+  print "B: @`A @`E @^E @^I @^O @oe @OE^";
+  for (::) {
+    print "> ";
+    buf->0 = 80; buf->1 = 0;
+    @aread buf prs -> i;
+    n = buf->1;
+    if (n == 0) break;
+    print "Z:";
+    for (i = 0: i < n: i++) print " ", buf->(i + 2);
+    new_line;
+  }
+  print "FIN^";
+  @quit;
+];

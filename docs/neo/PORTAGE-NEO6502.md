@@ -27,7 +27,7 @@ Les parties sauvées sont écrites à côté : `MINIZORK.SV0` à `MINIZORK.SV9`.
 Dans l'émulateur du firmware : `ruby make.rb -t:neo -s examples/minizork.z3` (exécutable `neo`, à mettre
 dans le `PATH` ou à déclarer dans `.ozmoorc` : `NEO = /chemin/vers/Neo6502Trinity/bin/neo`).
 
-## État (version 0.1.0, sprint 1)
+## État (version 0.2.0, sprint 2)
 
 Vérifié dans l'émulateur `neo` de Trinity (0.16.112), par `make -C tests/neo` :
 
@@ -40,6 +40,9 @@ Vérifié dans l'émulateur `neo` de Trinity (0.16.112), par `make -C tests/neo`
 | `adventure` | advent_punyinform.z5 (80 Ko, plus que la RAM) | 12 commandes |
 | `sauvegarde` | minizork.z3 | `save` puis `restore` dans l'emplacement 4 |
 | `redemarrage` | minizork.z3 | `restart` (rechargement du `.NEO`) |
+| `saisie-chronometree` | chrono.z5 (`tests/neo/sources/`) | `read_char` et `aread` avec délai : routine appelée 10 fois par seconde |
+| `accents` | accents.z5 (`tests/neo/sources/`) | lettres accentuées à l'écran, symboles `{ } ~ \` \| \\ _ ^`, composition `^e` → ê |
+| `clavier-azerty` | accents.z5 avec `-neokbd:fr` | touches é è ç à ù du clavier AZERTY, `^` puis `e` |
 
 Et `tests/neo/non-regression.sh` : l'interpréteur des cibles C64, C128, Plus/4, MEGA65 et X16 (minizork.z3,
 czech.z5, praxix.z5) est identique, octet pour octet, à celui de l'amont `5b990fb`.
@@ -52,9 +55,16 @@ Fonctions :
   ligne de statut et fenêtre haute, vidéo inverse, invite `[MORE]` clignotante, couleurs (noir sur blanc
   par défaut, comme Ozmoo ; options `-fgcol` et `-bgcol` de make.rb pour changer, non testées sur la Neo).
 - Clavier par 2,1 : lettres, chiffres, ponctuation, Entrée, retour arrière, flèches.
+- Accents (sans option `-cm:`, qui est ignorée pour la Neo) : les caractères de la table Unicode par défaut
+  de la Z-machine (ZSCII 155-223) qui existent en CP437 s'affichent avec leur glyphe (é è ê à ç ù â î ô û
+  ë ï ü ä ö ÿ á í ó ú ì ò å ñ æ ß « » ¡ ¿, et É Ä Ö Ü Å Æ Ç Ñ) ; les autres sans accent (À → A, œ → o).
+  Saisie : les lettres Latin-1 de la locale du clavier (`LOCALE fr` dans NeoDOS, ou `-neokbd:fr` à la
+  construction) ; `^` et `¨` sont des touches mortes (`^` puis `e` → ê, `^` puis espace → `^`). Une
+  majuscule accentuée sans glyphe CP437 est saisie en minuscule.
+- Saisie chronométrée : le temps vient du compteur de trames 5,37 (60 Hz).
 - `save` / `restore` (emplacements 0 à 9), `restart`, `quit` (retour à NeoDOS par 1,3).
 
-Non testé : la saisie chronométrée (temps tiré du compteur de trames 5,37, 60 Hz), la sortie vers NeoDOS
+Non testé : la saisie d'une majuscule accentuée (le crochet `hid:` de `neo` n'envoie pas Maj), la sortie vers NeoDOS
 (les tests s'arrêtent avant, par `-neotest`), et **rien n'a encore été essayé sur la carte**.
 
 ## Architecture
@@ -63,13 +73,16 @@ Non testé : la saisie chronométrée (temps tiré du compteur de trames 5,37, 6
 |---|---|
 | `asm/constants-neo.asm` | carte mémoire, page zéro (celle de la C64), registres de l'API, routines « KERNAL » |
 | `asm/neo.asm` | appel de l'API, clavier, temps, lecture de l'histoire, primitives d'écran du mode 3, tables de caractères |
+| `asm/chars-neo.asm` | caractères : codes internes des lettres accentuées, tables d'entrée et de sortie (remplace les sections `-cm:` de `streams.asm`) |
 | `asm/save-neo.asm` | sauvegarde, restauration, redémarrage (inclus dans la zone `save_restore` de `disk.asm`) |
 | `asm/screenkernal.asm`, `asm/screen.asm` | branches `TARGET_NEO` à côté de celles de l'X16 |
 | `asm/disk.asm`, `asm/ozmoo.asm`, `asm/utilities.asm` | le code de disquette CBM est exclu, la configuration est déjà en mémoire |
 | `make.rb` | cible `neo`, mode `MODE_NEO`, écriture du `.NEO` (`write_neo_file`, `build_neo`) |
 
 Ozmoo garde ses caractères en PETSCII ; la couche Neo traduit à la frontière : ASCII du clavier vers
-PETSCII (`neo_ascii_to_petscii`), PETSCII vers CP437 à l'écran (`neo_petscii_to_cp437`). Les couleurs restent
+PETSCII (`neo_ascii_to_petscii`), Latin-1 vers code interne (`neo_latin1_to_internal`), PETSCII vers
+CP437 à l'écran (`neo_petscii_to_cp437`). Les lettres accentuées ont des codes internes libres
+(`$e0-$fe`, `$b0-$b6`, voir `chars-neo.asm`). Les couleurs restent
 des numéros de la C64, traduits en couleurs CGA du mode 3 (`neo_c64_to_cga`).
 
 ### Carte mémoire
@@ -103,13 +116,13 @@ de vérifications [ESSAI-CARTE.md](ESSAI-CARTE.md). Lancement depuis NeoDOS : `C
 ## Tests
 
 `tests/neo/run_story.sh` construit une histoire avec `-neotest`, la joue dans l'émulateur `neo` avec des
-touches tapées (crochet `keys:`) et écrit l'écran final. Avec `-neotest`, `[MORE]` ne bloque pas et `quit`
+touches tapées (crochet `keys:`, ou codes HID bruts par `hid:`) et écrit l'écran final. Avec `-neotest`, `[MORE]` ne bloque pas et `quit`
 recopie la grille du mode 3 en `$F000` (12,2) avant de sauter en `$FFFF`, ce qui arrête `neo` et écrit
 `memory.dump`. `make -C tests/neo` joue toute la suite (voir `tests/neo/Makefile`).
 
 ## Limites connues
 
-- Pas encore d'accents (clavier Latin-1, glyphes CP437, tables `-cm:`) ni de touches de fonction.
+- Pas de touches de fonction ; pas de glyphe pour les majuscules accentuées absentes du CP437 (À, È, Ê...).
 - Pas d'images Z6, pas de son, pas d'annulation (undo), pas d'historique de défilement, pas de mode sombre.
 - `neo_delay_1ms` est une boucle approximative (≈ 6 000 cycles, en supposant 6,25 MHz) : elle ne sert
   qu'aux pauses de l'affichage.

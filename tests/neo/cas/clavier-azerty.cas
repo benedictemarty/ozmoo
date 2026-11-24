@@ -1,0 +1,6 @@
+# accents.z5 avec la locale fr (-neokbd:fr) : touches AZERTY envoyées en codes HID bruts.
+# 1f é, 24 è, 26 ç, 27 à, 34 ù, 2f ^ (touche morte) puis 08 e -> ê, 28 Entrée (deux fois : ligne vide).
+STORY=tests/neo/histoires/accents.z5
+OPTS="-neokbd:fr"
+HIDKEYS=1f,24,26,27,34,2f,08,28,28
+CYCLES=300000000

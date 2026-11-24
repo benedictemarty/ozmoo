@@ -1,0 +1,4 @@
+^1 read_char=0 appels=5$
+^2 aread=0 appels=5$
+^3 touche=120 appels=(2[5-9][0-9]|30[0-9])$
+^FIN$

@@ -47,7 +47,9 @@ Noter pour chaque point : OK, KO (avec une photo de l'écran si possible) ou non
    pas d'erreur de lecture, pas de blocage. Noter les pauses dues à la lecture de la clé.
 9. **Saisie chronométrée** (`ETUDE`) : lancer le test de saisie chronométrée du menu ; les
    événements doivent arriver à peu près au bon rythme (horloge 5,37 à 60 Hz).
-10. **Conformité** (`CZECH`, puis `PRAXIX` avec `all`) : comparer avec les résultats attendus
+10. **Accents** : dans NeoDOS, `LOCALE fr` avant de lancer `MINIZORK` ; taper `é è ç à ù`, puis `^` `e`
+    (doit donner ê) : les lettres s'affichent avec leur accent (le jeu répond qu'il ne connaît pas le mot).
+11. **Conformité** (`CZECH`, puis `PRAXIX` avec `all`) : comparer avec les résultats attendus
     ci-dessus.
 
 ## En cas de problème
