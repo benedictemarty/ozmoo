@@ -127,6 +127,22 @@ Essayés dans `neo` (0.4.0) : Zork I, Trinity (37,7 Ko de mémoire dynamique, 13
 commandes), Sherlock (cas de test) ; A Mind Forever Voyaging, Beyond Zork, Border Zone (horloge en temps
 réel) démarrent et répondent (captures, pas de cas).
 
+## Images des jeux Z6 (en préparation)
+
+Choix de bmarty (2026-11-24) : les images sont décodées par le firmware Trinity, à la volée, depuis les
+fichiers d'images d'origine posés sur la clé. Format retenu : celui des versions IBM (`.EG1` EGA, `.MG1`
+VGA), décrit par `pix2gif` (ztools de Mark Howell) ; les fichiers Mac (`PIC.DATA`, `CPIC.DATA`) ne sont
+pas décodables (compression inconnue).
+
+- `tools/neo/infopic.py` : décodeur de référence (liste, PNG).
+- `tools/neo/mkpic.py` : écrit un fichier d'images de test libre de droits (formats EG1 et MG1 ; codes
+  jusqu'à 12 bits, remises à zéro de la table, transparence, image sans données, palette).
+- `tests/neo/infopic_test.py` (`make -C tests/neo images`) : aller-retour mkpic/infopic ; si présent,
+  `../infocom-masterpieces/ibm/zorkzero/ZORK0.EG1` (Zork Zero r393) : 396 images complètes.
+
+Zork Zero IBM r393 : 503 entrées, 396 images, 640 × 200 en EGA (moitié de la largeur sur l'écran de
+320 × 240 du mode 2), 16 couleurs fixes de l'EGA ; mémoire dynamique 29,2 Ko.
+
 ## Essai sur la carte
 
 `tests/neo/paquet-cle.sh` (ou `make -C tests/neo paquet`) prépare `build-neo/cle/OZMOO/` : six histoires
