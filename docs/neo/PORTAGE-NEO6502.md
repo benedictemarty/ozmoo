@@ -5,6 +5,9 @@ Fredrik Ramsberg, GPLv2) vers la **Neo6502** d'Olimex avec le firmware **Trinity
 l'Ozmoo officiel (commit `5b990fb`, release 16) et ajoute une cible `-t:neo` (`TARGET_NEO`) ; les autres
 cibles ne changent pas.
 
+Dépôt : fork [benedictemarty/ozmoo](https://github.com/benedictemarty/ozmoo), branche `neo6502-trinity`
+(remote `origin`) ; l'officiel est le remote `upstream`.
+
 ## Construire et lancer
 
 ```sh
